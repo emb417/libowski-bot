@@ -24,14 +24,14 @@ export async function getBestSellers() {
   const items = db.data.libraryItems.filter(
     (item) => item.type === "available now",
   );
-  logger.info(`${items.length} db best seller items found.`);
+  logger.info(`The Dude found ${items.length} best seller items in the db.`);
   return items;
 }
 
 export async function getOnOrder() {
   const db = await initDB();
   const items = db.data.libraryItems.filter((item) => item.type === "on order");
-  logger.info(`${items.length} db on order items found.`);
+  logger.info(`The Dude found ${items.length} on order items in the db.`);
   return items;
 }
 
@@ -82,7 +82,7 @@ export async function updateLibraryItems(refreshedTitles, type) {
 
   await db.write();
   logger.debug(
-    `Updated ${refreshedTitles.length} library items of type: ${type}`,
+    `The Dude updated ${refreshedTitles.length} library items of type: ${type}`,
   );
 }
 
@@ -98,7 +98,7 @@ export async function updateItemAvailability(
   );
 
   if (itemIndex === -1) {
-    logger.warn(`Item ${itemId} not found in database`);
+    logger.warn(`The Dude could not find Item ${itemId} in the db.`);
     return null;
   }
 
@@ -144,12 +144,12 @@ export async function getWishListItems(userId) {
   const user = db.data.users.find((u) => u.id === userId);
 
   if (!user || !user.wishlist) {
-    logger.info(`No wishlist found for user ID ${userId}`);
+    logger.info(`The Dude did not find a wishlist for user ID ${userId}`);
     return [];
   }
 
   logger.info(
-    `Retrieved ${user.wishlist.length} wishlist items for user ${user.username}`,
+    `The Dude retrieved ${user.wishlist.length} wishlist items for user ${user.username}`,
   );
   return user.wishlist;
 }
@@ -194,7 +194,7 @@ export async function addWishListItem(user, title) {
 
     if (existingUser.wishlist.includes(title)) {
       logger.info(
-        `Title "${title}" already exists in wishlist for user ${user.username}`,
+        `The Dude found another Title "${title}" already in ${user.username}'s wishlist.`,
       );
       return {
         user: existingUser,
@@ -204,7 +204,7 @@ export async function addWishListItem(user, title) {
     }
 
     existingUser.wishlist.push(title);
-    logger.info(`Added "${title}" to wishlist for user ${user.username}`);
+    logger.info(`The Dude added "${title}" to ${user.username}'s wishlist.`);
   } else {
     const newUser = {
       id: user.id,
@@ -215,7 +215,7 @@ export async function addWishListItem(user, title) {
     db.data.users.push(newUser);
     existingUser = newUser;
     logger.info(
-      `Created new user ${user.username} and added "${title}" to wishlist`,
+      `The Dude created anew user ${user.username} and added "${title}" to wishlist.`,
     );
   }
 
@@ -234,18 +234,18 @@ export async function removeWishListItem(userId, title) {
   const user = db.data.users.find((u) => u.id === userId);
 
   if (!user || !user.wishlist) {
-    throw new Error("User or wishlist not found");
+    throw new Error("Dude! User or wishlist not found");
   }
 
   const index = user.wishlist.indexOf(title);
   if (index === -1) {
-    throw new Error("Title not found in wishlist");
+    throw new Error("Dude! Title not found in wishlist");
   }
 
   user.wishlist.splice(index, 1);
   await db.write();
 
-  logger.info(`Removed "${title}" from wishlist for user ${user.username}`);
+  logger.info(`The Dude removed "${title}" from ${user.username}'s wishlist.`);
 
   return {
     user: user,

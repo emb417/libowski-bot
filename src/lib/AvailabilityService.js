@@ -29,13 +29,15 @@ export async function getAvailableBibItems(items) {
       logger.debug(
         `${counter}. ${availableForItem.length} of ${
           Object.values(bibItemsData).length
-        } bibItems found for ${item.title}.`,
+        } bibItems for ${item.title}.`,
       );
 
       availableBibItems.push(...availableForItem);
       counter++;
     } catch (error) {
-      logger.error(`Failed to parse bibItems for ${item.id}: ${error.message}`);
+      logger.error(
+        `The Dude failed to parse bibItems for ${item.id}: ${error.message}`,
+      );
     }
   }
 

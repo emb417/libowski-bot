@@ -48,7 +48,9 @@ export class AddToWishlistCommand extends Command {
 
       const embed = new EmbedBuilder()
         .setTitle("✅ Added to Wishlist")
-        .setDescription(`**${title}** has been added to your wishlist!`)
+        .setDescription(
+          `Hey man, **${title}** has been added to your wishlist!`,
+        )
         .setColor(0x57f287)
         .setFooter({ text: `Total Items: ${result.totalItems}` });
 
@@ -56,16 +58,16 @@ export class AddToWishlistCommand extends Command {
         embeds: [embed],
       });
     } catch (error) {
-      logger.error(`[Add To Wishlist Command] Error:`, error);
+      logger.error({ err: error }, "Dude! [Add To Wishlist Command] Error");
 
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
-          content: `An error occurred while adding to wishlist: ${error.message}`,
+          content: `Dude, an error occurred while adding to wishlist: ${error?.message || "Unknown error"}`,
         });
       } else {
         return interaction.reply({
-          content: `An error occurred while adding to wishlist: ${error.message}`,
-          ephemeral: true,
+          content: `Dude, an error occurred while adding to wishlist: ${error?.message || "Unknown error"}`,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }

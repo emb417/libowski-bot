@@ -35,7 +35,7 @@ export class ViewWishlistCommand extends Command {
       if (items.length === 0) {
         return interaction.editReply({
           content:
-            "Your wishlist is empty! Use `/add-to-wishlist` to add items.",
+            "Common, your wishlist is empty, man! Use `/add-to-wishlist` to add items.",
         });
       }
 
@@ -44,7 +44,7 @@ export class ViewWishlistCommand extends Command {
         .join("\n");
 
       const embed = new EmbedBuilder()
-        .setTitle("📚 Your Wishlist")
+        .setTitle("✨ Your Wishlist")
         .setDescription(listItems)
         .setColor(0x5865f2);
 
@@ -52,15 +52,15 @@ export class ViewWishlistCommand extends Command {
         embeds: [embed],
       });
     } catch (error) {
-      logger.error(`[View Wishlist Command] Error:`, error);
+      logger.error({ err: error }, "Dude! [View Wishlist Command] Error");
 
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
-          content: `An error occurred while fetching your wishlist: ${error.message}`,
+          content: `Dude, an error occurred while fetching your wishlist: ${error?.message || "Unknown error"}`,
         });
       } else {
         return interaction.reply({
-          content: `An error occurred while fetching your wishlist: ${error.message}`,
+          content: `Dude, an error occurred while fetching your wishlist: ${error?.message || "Unknown error"}`,
           flags: MessageFlags.Ephemeral,
         });
       }

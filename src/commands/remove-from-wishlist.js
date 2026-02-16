@@ -68,7 +68,9 @@ export class RemoveFromWishlistCommand extends Command {
 
       const embed = new EmbedBuilder()
         .setTitle("🗑️ Removed from Wishlist")
-        .setDescription(`**${title}** has been removed from your wishlist!`)
+        .setDescription(
+          `Hey man, **${title}** has been removed from your wishlist!`,
+        )
         .setColor(0xed4245)
         .setFooter({
           text: `Remaining Items: ${result.totalItems}`,
@@ -78,15 +80,18 @@ export class RemoveFromWishlistCommand extends Command {
         embeds: [embed],
       });
     } catch (error) {
-      logger.error(`[Remove From Wishlist Command] Error:`, error);
+      logger.error(
+        { err: error },
+        "Dude! [Remove From Wishlist Command] Error",
+      );
 
-      let errorMessage = `An error occurred while removing from wishlist: ${error.message}`;
+      let errorMessage = `Dude, an error occurred while removing from wishlist: ${error?.message || "Unknown error"}`;
 
       if (error.message === "User or wishlist not found") {
         errorMessage =
-          "You don't have a wishlist yet! Use `/add-to-wishlist` to create one.";
+          "Dude,you don't have a wishlist yet! Use `/add-to-wishlist` to create one, man.";
       } else if (error.message === "Title not found in wishlist") {
-        errorMessage = `"${interaction.options.getString("title")}" is not in your wishlist.`;
+        errorMessage = `Dude, "${interaction.options.getString("title")}" is not in your wishlist.`;
       }
 
       if (interaction.deferred || interaction.replied) {

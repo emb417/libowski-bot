@@ -27,14 +27,14 @@ export const client = new SapphireClient({
 });
 
 async function main() {
-  logger.info("Starting Discord bot...");
+  logger.info("The Dude...");
   try {
-    logger.info("Attempting to log in Discord bot...");
+    logger.info("...is attempting to log in to Discord...");
     await client.login(process.env.DISCORD_TOKEN);
     scheduleCronJobs();
-    logger.info("Discord bot logged in successfully.");
+    logger.info("The Dude abides.");
   } catch (error) {
-    logger.error("Error during bot startup:", error);
+    logger.error("The Dude just couldn't get started today:", error);
     process.exit(1);
   }
 }

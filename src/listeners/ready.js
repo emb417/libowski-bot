@@ -13,6 +13,6 @@ export class ReadyListener extends Listener {
   run(client) {
     const { username, id } = client.user;
     logger.info(`Successfully logged in as ${username} (${id})`);
-    logger.info(`Bot is ready for work`);
+    logger.info(`I'm in like Flynn, man!`);
   }
 }
