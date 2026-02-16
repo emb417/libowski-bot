@@ -112,6 +112,7 @@ export class FindVideoCommand extends Command {
           color: "#3498DB",
           showAvailability: true,
           showLocation: false,
+          showReserveLink: true,
         },
       );
 

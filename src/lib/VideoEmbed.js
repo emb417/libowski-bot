@@ -7,6 +7,7 @@ export class VideoEmbed {
       color = "#0099FF",
       showAvailability = false,
       showLocation = false,
+      showReserveLink = false, // Add new option
     } = options;
 
     const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? ` ${item.subtitle}` : ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
@@ -22,9 +23,18 @@ export class VideoEmbed {
 
     if (showAvailability && item.availability) {
       const availabilityText = this.formatAvailability(item.availability);
+      const hasAvailability = availabilityText !== null;
+
+      let fieldValue = hasAvailability ? availabilityText : "Not available.";
+
+      // Add reserve link if requested and we have a URL
+      if (showReserveLink && item.url) {
+        fieldValue += `\n[Reserve or check other locations](${item.url})`;
+      }
+
       embed.addFields({
         name: "Available At",
-        value: availabilityText,
+        value: fieldValue,
         inline: false,
       });
     }

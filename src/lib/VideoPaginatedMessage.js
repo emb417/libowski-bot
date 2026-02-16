@@ -10,6 +10,7 @@ export class VideoPaginatedMessage extends PaginatedMessage {
       color = "#0099FF",
       showAvailability = false,
       showLocation = false,
+      showReserveLink = false,
     } = options;
 
     const selectMenuOptions = [];
@@ -49,6 +50,7 @@ export class VideoPaginatedMessage extends PaginatedMessage {
         color,
         showAvailability,
         showLocation,
+        showReserveLink,
       });
 
       this.addPage({ embeds: [embed] });
