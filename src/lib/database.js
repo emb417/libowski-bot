@@ -301,3 +301,72 @@ export async function updateUserNotificationTimestamp(
 
   await db.write();
 }
+
+// ============================================================================
+// USER ACCOUNT - Library Card Linking
+// ============================================================================
+
+export async function linkLibraryCard(userId, username, cardNumber, pin) {
+  const db = await initDB();
+
+  let existingUser = db.data.users.find((u) => u.id === userId);
+
+  if (existingUser) {
+    existingUser.libraryCard = {
+      cardNumber: cardNumber,
+      pin: pin,
+      linkedDate: Math.floor(Date.now() / 1000),
+    };
+    logger.info(`The Dude updated library card for ${username}`);
+  } else {
+    const newUser = {
+      id: userId,
+      username: username,
+      wishlist: [],
+      libraryCard: {
+        cardNumber: cardNumber,
+        pin: pin,
+        linkedDate: Math.floor(Date.now() / 1000),
+      },
+    };
+    db.data.users.push(newUser);
+    existingUser = newUser;
+    logger.info(`The Dude created new user ${username} with library card`);
+  }
+
+  await db.write();
+
+  return existingUser;
+}
+
+export async function unlinkLibraryCard(userId) {
+  const db = await initDB();
+
+  const user = db.data.users.find((u) => u.id === userId);
+
+  if (!user) {
+    throw new Error("Dude! User not found");
+  }
+
+  if (!user.libraryCard) {
+    throw new Error("Dude! No library card linked to this account");
+  }
+
+  delete user.libraryCard;
+  await db.write();
+
+  logger.info(`The Dude unlinked library card for ${user.username}`);
+
+  return user;
+}
+
+export async function getLibraryCard(userId) {
+  const db = await initDB();
+  const user = db.data.users.find((u) => u.id === userId);
+
+  if (!user || !user.libraryCard) {
+    return null;
+  }
+
+  return user.libraryCard;
+}
