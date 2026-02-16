@@ -12,6 +12,7 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       showLocation = false,
       showReserveLink = false,
       showHoldStatus = false,
+      showCheckoutStatus = false,
     } = options;
 
     const selectMenuOptions = [];
@@ -24,7 +25,11 @@ export class ItemPaginatedMessage extends PaginatedMessage {
 
       let description = "";
 
-      if (showHoldStatus && item.holdStatus) {
+      if (showCheckoutStatus && item.dueDate) {
+        // Show checkout status in dropdown
+        const statusText = this.formatCheckoutStatusShort(item);
+        description = statusText.substring(0, 100);
+      } else if (showHoldStatus && item.holdStatus) {
         const statusText = this.formatHoldStatusShort(item);
         description = statusText.substring(0, 100);
       } else if (showAvailability && item.availability) {
@@ -56,6 +61,7 @@ export class ItemPaginatedMessage extends PaginatedMessage {
         showLocation,
         showReserveLink,
         showHoldStatus,
+        showCheckoutStatus,
       });
 
       this.addPage({ embeds: [embed] });
@@ -83,5 +89,24 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       return "Not ready";
     }
     return item.holdStatus || "Unknown status";
+  }
+
+  formatCheckoutStatusShort(item) {
+    if (item.isOverdue) {
+      return `⚠️ OVERDUE`;
+    }
+    if (item.dueDate) {
+      const daysUntilDue = Math.ceil(
+        (new Date(item.dueDate) - new Date()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysUntilDue === 0) {
+        return `Due today`;
+      } else if (daysUntilDue === 1) {
+        return `Due tomorrow`;
+      } else {
+        return `Due in ${daysUntilDue} days`;
+      }
+    }
+    return "Checked out";
   }
 }

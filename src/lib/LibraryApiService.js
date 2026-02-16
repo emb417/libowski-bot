@@ -1,39 +1,28 @@
 import { load as cheerioLoad } from "cheerio";
 import logger from "../utils/logger.js";
 
-const SEARCH_VIDEO_AVAILABILITY_CONFIG = {
-  type: "search video availability",
-  fetchUrl:
-    "https://wccls.bibliocommons.com/v2/search?query=abbott&searchType=keyword&f_FORMAT=DVD%7CBLURAY%7CDVD_PBLURAY",
-  scriptValue: 'script[type="application/json"][data-iso-key="_0"]',
-};
-
-const AVAILABLE_NOW_CONFIG = {
-  type: "available now",
-  fetchUrl:
-    "https://wccls.bibliocommons.com/v2/search?custom_edit=false&query=collection%3A%22Best%20Sellers%22%20formatcode%3A(BLURAY%20)&searchType=bl&suppress=true&locked=true&f_STATUS=9%7C39%7C29%7C31&f_NEWLY_ACQUIRED=PAST_180_DAYS",
-  scriptValue: 'script[type="application/json"][data-iso-key="_0"]',
-};
-
-const ON_ORDER_CONFIG = {
-  type: "on order",
-  fetchUrl:
-    "https://wccls.bibliocommons.com/v2/search?query=nw%3A%5B0%20TO%20180%5D&searchType=bl&sort=NEWLY_ACQUIRED&suppress=true&title_key=all_newly_acquired&f_FORMAT=BLURAY&f_ON_ORDER=true&f_NEWLY_ACQUIRED=PAST_7_DAYS",
-  scriptValue: 'script[type="application/json"][data-iso-key="_0"]',
-};
-
-const LOGIN_URL =
-  "https://wccls.bibliocommons.com/user/login?destination=https%3A%2F%2Fwccls.bibliocommons.com%2F";
-const HOLDS_URL = "https://wccls.bibliocommons.com/v2/holds";
+const scriptValue = `script[type="application/json"][data-iso-key="_0"]`;
+const searchUrl = "https://wccls.bibliocommons.com/v2/search";
 
 export async function fetchLibraryData(type) {
+  const AVAILABLE_NOW_CONFIG = {
+    type: "available now",
+    queryString:
+      "custom_edit=false&query=collection%3A%22Best%20Sellers%22%20formatcode%3A(BLURAY%20)&searchType=bl&suppress=true&locked=true&f_STATUS=9%7C39%7C29%7C31&f_NEWLY_ACQUIRED=PAST_180_DAYS",
+  };
+
+  const ON_ORDER_CONFIG = {
+    type: "on order",
+    queryString:
+      "query=nw%3A%5B0%20TO%20180%5D&searchType=bl&sort=NEWLY_ACQUIRED&suppress=true&title_key=all_newly_acquired&f_FORMAT=BLURAY&f_ON_ORDER=true&f_NEWLY_ACQUIRED=PAST_7_DAYS",
+  };
   const config =
     type === "available now" ? AVAILABLE_NOW_CONFIG : ON_ORDER_CONFIG;
 
-  const response = await fetch(config.fetchUrl);
+  const response = await fetch(`${searchUrl}?${config.queryString}`);
   const data = await response.text();
   const $ = cheerioLoad(data);
-  const script = $(config.scriptValue).text();
+  const script = $(scriptValue).text();
 
   let libraryData;
   try {
@@ -86,12 +75,12 @@ export async function searchMediaAvailability(query, mediaType = "") {
     formatQuery = `f_FORMAT=${encodedMediaType}`;
   }
 
-  const searchUrl = `https://wccls.bibliocommons.com/v2/search?query=${encodedQuery}&searchType=keyword&${formatQuery}`;
+  const queryString = `query=${encodedQuery}&searchType=keyword&${formatQuery}`;
 
-  const response = await fetch(searchUrl);
+  const response = await fetch(`${searchUrl}?${queryString}`);
   const data = await response.text();
   const $ = cheerioLoad(data);
-  const script = $(SEARCH_VIDEO_AVAILABILITY_CONFIG.scriptValue).text();
+  const script = $(scriptValue).text();
 
   let libraryData;
   try {
@@ -110,9 +99,10 @@ export async function searchMediaAvailability(query, mediaType = "") {
  * Login to library website and return session cookies
  */
 export async function loginToLibrary(cardNumber, pin) {
+  const url = "https://wccls.bibliocommons.com/user/login";
   try {
     // First, get the login page to extract CSRF token
-    const loginPageResponse = await fetch(LOGIN_URL.split("?")[0]);
+    const loginPageResponse = await fetch(url);
     const loginPageHtml = await loginPageResponse.text();
 
     // Extract CSRF token from the HTML (it's in a meta tag or form)
@@ -137,7 +127,7 @@ export async function loginToLibrary(cardNumber, pin) {
     });
 
     // Perform login
-    const loginResponse = await fetch(LOGIN_URL, {
+    const loginResponse = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -174,8 +164,9 @@ export async function loginToLibrary(cardNumber, pin) {
  * Fetch user's holds from library website
  */
 export async function fetchHolds(sessionCookies) {
+  const url = "https://wccls.bibliocommons.com/v2/holds";
   try {
-    const response = await fetch(HOLDS_URL, {
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         Accept:
@@ -241,81 +232,82 @@ export async function fetchHolds(sessionCookies) {
   }
 }
 
-/**
- * Parse holds from HTML response
- */
-function parseHoldsFromHtml(html) {
-  const holds = [];
+export async function fetchCheckedOut(sessionCookies) {
+  const url = "https://wccls.bibliocommons.com/v2/checkedout/out";
 
-  // Look for the holds data - BiblioCommons often includes JSON data in the page
-  // Try to find JSON data embedded in the page
-  const jsonMatch = html.match(/var\s+holdsData\s*=\s*(\{[\s\S]*?\});/);
-
-  if (jsonMatch) {
-    try {
-      const holdsData = JSON.parse(jsonMatch[1]);
-      // Transform to our format
-      return transformHoldsData(holdsData);
-    } catch (e) {
-      logger.error({ err: e }, "Failed to parse holds JSON");
-    }
-  }
-
-  // Fallback: parse HTML structure
-  // BiblioCommons uses specific class names for holds
-  const titleMatches = html.matchAll(
-    /<div[^>]*class="[^"]*cp-bib-title[^"]*"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>([^<]+)<\/a>/g,
-  );
-  const formatMatches = html.matchAll(
-    /<div[^>]*class="[^"]*cp-format[^"]*"[^>]*>([^<]+)<\/div>/g,
-  );
-
-  const titles = Array.from(titleMatches);
-  const formats = Array.from(formatMatches);
-
-  for (let i = 0; i < titles.length; i++) {
-    const [, url, title] = titles[i];
-    const format = formats[i] ? formats[i][1].trim() : "Unknown";
-
-    // Extract ID from URL
-    const idMatch = url.match(/\/item\/show\/(\d+)/);
-    const id = idMatch ? idMatch[1] : `hold_${i}`;
-
-    holds.push({
-      id: `S143C${id}`,
-      title: title.trim(),
-      subtitle: "",
-      format: format.toUpperCase().replace(/\s+/g, "_"),
-      url: url.startsWith("http")
-        ? url
-        : `https://wccls.bibliocommons.com${url}`,
-      type: "hold",
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Cookie: sessionCookies,
+      },
     });
+
+    if (!response.ok) {
+      logger.error(
+        `[LibraryAPI] Failed to fetch checked out items: ${response.status}`,
+      );
+      return null;
+    }
+
+    const html = await response.text();
+
+    // Extract JSON data from script tag
+    const scriptMatch = html.match(
+      /<script type="application\/json" data-iso-key="_0">([\s\S]*?)<\/script>/,
+    );
+
+    if (!scriptMatch) {
+      logger.error("[LibraryAPI] Could not find checkout data in response");
+      return null;
+    }
+
+    const jsonData = JSON.parse(scriptMatch[1]);
+    const checkouts = jsonData.entities?.checkouts || {};
+    const bibs = jsonData.entities?.bibs || {};
+
+    // Transform checkout data
+    const checkedOutItems = Object.values(checkouts).map((checkout) => {
+      const bib = bibs[checkout.metadataId];
+      const briefInfo = bib?.briefInfo || {};
+
+      // Determine if item is overdue
+      const dueDate = checkout.dueDate ? new Date(checkout.dueDate) : null;
+      const isOverdue = dueDate && dueDate < new Date();
+
+      // Get jacket image
+      const jacket = briefInfo.jacket || {};
+      const image = jacket.large || jacket.medium || jacket.small || null;
+
+      return {
+        id: checkout.checkoutId,
+        title: briefInfo.title || "Unknown Title",
+        subtitle: briefInfo.subtitle || "",
+        format: briefInfo.format || "Unknown Format",
+        publicationYear: briefInfo.publicationDate || "",
+        description: briefInfo.description || "No description available.",
+        image: image,
+        url: `https://wccls.bibliocommons.com/v2/record/${checkout.metadataId}`,
+        type: "checkout",
+        dueDate: checkout.dueDate,
+        isOverdue: isOverdue,
+        timesRenewed: checkout.timesRenewed || 0,
+        branch: checkout.branch?.name || null,
+        callNumber: checkout.callNumber || null,
+        barcode: checkout.barcode || null,
+        materialType: checkout.materialType || null,
+        fines: checkout.fines || 0,
+        actions: checkout.actions || [],
+      };
+    });
+
+    logger.debug(
+      `[LibraryAPI] Found ${checkedOutItems.length} checked out items`,
+    );
+    return checkedOutItems;
+  } catch (error) {
+    logger.error("[LibraryAPI] Error fetching checked out items:", error);
+    return null;
   }
-
-  return holds;
-}
-
-/**
- * Transform BiblioCommons holds data to our format
- */
-function transformHoldsData(holdsData) {
-  // This will depend on the actual structure of the JSON data
-  // Adjust based on what we find in the actual response
-  return (
-    holdsData.items?.map((item) => ({
-      id: item.id || item.bibId,
-      title: item.title,
-      subtitle: item.subtitle || "",
-      format: item.format || "UNKNOWN",
-      publicationYear: item.publicationYear,
-      description: item.description || "",
-      image: item.coverImage,
-      url: item.url || `https://wccls.bibliocommons.com/v2/record/${item.id}`,
-      type: "hold",
-      holdStatus: item.status,
-      pickupLocation: item.pickupLocation,
-      position: item.queuePosition,
-    })) || []
-  );
 }
