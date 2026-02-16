@@ -1,7 +1,7 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
 import { getBestSellers } from "../lib/database.js";
-import { BlurayPaginatedMessage } from "../lib/BlurayPaginatedMessage.js";
+import { VideoPaginatedMessage } from "../lib/VideoPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
 export class BestSellersCommand extends Command {
@@ -31,10 +31,12 @@ export class BestSellersCommand extends Command {
       const items = await getBestSellers();
 
       if (!items || items.length === 0) {
-        return interaction.editReply(`No items found for Available Now.`);
+        return interaction.editReply(
+          `Hey man, there just aren't any available now.`,
+        );
       }
 
-      const paginatedMessage = new BlurayPaginatedMessage(items, {
+      const paginatedMessage = new VideoPaginatedMessage(items, {
         titlePrefix: "📀 ",
         color: "#0099FF",
         showAvailability: true,
@@ -43,15 +45,15 @@ export class BestSellersCommand extends Command {
 
       return paginatedMessage.run(interaction, interaction.user);
     } catch (error) {
-      logger.error(`[BestSellers Command] Error:`, error);
+      logger.error({ err: error }, "Dude! [BestSellers Command] Error");
 
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
-          content: `An error occurred while fetching library items: ${error.message}`,
+          content: `Dude, an error occurred while fetching library items: ${error?.message || "Unknown error"}`,
         });
       } else {
         return interaction.reply({
-          content: `An error occurred while fetching library items: ${error.message}`,
+          content: `Dude, an error occurred while fetching library items: ${error?.message || "Unknown error"}`,
           flags: MessageFlags.Ephemeral,
         });
       }

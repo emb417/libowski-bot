@@ -13,7 +13,7 @@ import {
   updateItemAvailability,
   markItemAsNotified,
 } from "./database.js";
-import { BluraySingleMessage } from "./BluraySingleMessage.js";
+import { VideoSingleMessage } from "./VideoSingleMessage.js";
 import logger from "../utils/logger.js";
 
 async function runAvailableNowTask() {
@@ -103,12 +103,12 @@ async function runAvailableNowTask() {
       for (const [userId, notificationData] of Object.entries(
         userNotifications,
       )) {
-        await BluraySingleMessage.sendToUser(
+        await VideoSingleMessage.sendToUser(
           userId,
           notificationData.username,
           notificationData.items,
           {
-            titlePrefix: "📀",
+            titlePrefix: "📀 ",
             color: "#00FF00",
             showLocation: true,
           },
@@ -155,7 +155,7 @@ async function runOnOrderTask() {
 
     // 6. Send channel notification if there are new items
     if (newOnOrderTitles.length > 0) {
-      await BluraySingleMessage.sendToChannel(
+      await VideoSingleMessage.sendToChannel(
         newOnOrderTitles.map((item) => ({
           title: item.title,
           subtitle: item.subtitle,
@@ -167,7 +167,7 @@ async function runOnOrderTask() {
           id: item.id,
         })),
         {
-          titlePrefix: "📦",
+          titlePrefix: "🚚 ",
           color: "#FFA500",
           showLocation: false,
         },
@@ -188,7 +188,7 @@ async function runOnOrderTask() {
 }
 
 export function scheduleCronJobs() {
-  logger.info("Scheduling cron jobs...");
+  logger.info("...and scheduling cron jobs...");
 
   const availabilityCronJob = cron.schedule(
     process.env.AVAILABILITY_SCHEDULE || "*/15 8-18 * * *",

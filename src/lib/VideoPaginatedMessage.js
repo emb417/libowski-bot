@@ -1,12 +1,12 @@
 import { PaginatedMessage } from "@sapphire/discord.js-utilities";
-import { BlurayEmbed } from "./BlurayEmbed.js";
+import { VideoEmbed } from "./VideoEmbed.js";
 
-export class BlurayPaginatedMessage extends PaginatedMessage {
+export class VideoPaginatedMessage extends PaginatedMessage {
   constructor(items, options = {}) {
     super();
 
     const {
-      titlePrefix = "📀",
+      titlePrefix = "📀 ",
       color = "#0099FF",
       showAvailability = false,
       showLocation = false,
@@ -44,7 +44,7 @@ export class BlurayPaginatedMessage extends PaginatedMessage {
         value: selectMenuOptions.length.toString(),
       });
 
-      const embed = BlurayEmbed.createEmbed(item, {
+      const embed = VideoEmbed.createEmbed(item, {
         titlePrefix,
         color,
         showAvailability,

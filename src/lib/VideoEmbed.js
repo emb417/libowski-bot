@@ -1,9 +1,9 @@
 import { EmbedBuilder } from "discord.js";
 
-export class BlurayEmbed {
+export class VideoEmbed {
   static createEmbed(item, options = {}) {
     const {
-      titlePrefix = "📀",
+      titlePrefix = "📀 ",
       color = "#0099FF",
       showAvailability = false,
       showLocation = false,
@@ -50,7 +50,7 @@ export class BlurayEmbed {
 
   static formatAvailability(availability) {
     if (!availability || Object.keys(availability).length === 0) {
-      return "Location information not available.";
+      return "Not available.";
     }
 
     const locations = Object.values(availability)
@@ -73,8 +73,6 @@ export class BlurayEmbed {
         return `📍 ${loc.location} (${timeAgo})`;
       });
 
-    return locations.length > 0
-      ? locations.join("\n")
-      : "Location information not available.";
+    return locations.length > 0 ? locations.join("\n") : "Not available."; // Changed from "Location information not available"
   }
 }

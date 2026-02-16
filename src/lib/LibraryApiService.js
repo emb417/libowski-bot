@@ -1,6 +1,13 @@
 import { load as cheerioLoad } from "cheerio";
 import logger from "../utils/logger.js";
 
+const SEARCH_VIDEO_AVAILABILITY_CONFIG = {
+  type: "search video availability",
+  fetchUrl:
+    "https://wccls.bibliocommons.com/v2/search?query=abbott&searchType=keyword&f_FORMAT=DVD%7CBLURAY%7CDVD_PBLURAY",
+  scriptValue: 'script[type="application/json"][data-iso-key="_0"]',
+};
+
 const AVAILABLE_NOW_CONFIG = {
   type: "available now",
   fetchUrl:
@@ -56,10 +63,41 @@ export function transformToTitles(libraryData, type) {
     });
   }
 
-  logger.debug(`${titles.length} titles transformed.`);
+  logger.debug(`${titles.length} ${type} titles transformed.`);
   return titles;
 }
 
 export function getConfigForType(type) {
   return type === "available now" ? AVAILABLE_NOW_CONFIG : ON_ORDER_CONFIG;
+}
+
+export async function searchMediaAvailability(query, mediaType = "") {
+  logger.info(`Searching for "${query}" with media type "${mediaType}"`);
+
+  const encodedQuery = encodeURIComponent(query);
+  let formatQuery = "f_FORMAT=DVD%7CBLURAY%7CDVD_PBLURAY"; // Default to video formats
+
+  if (mediaType) {
+    const encodedMediaType = encodeURIComponent(mediaType.toUpperCase());
+    formatQuery = `f_FORMAT=${encodedMediaType}`;
+  }
+
+  const searchUrl = `https://wccls.bibliocommons.com/v2/search?query=${encodedQuery}&searchType=keyword&${formatQuery}`;
+
+  const response = await fetch(searchUrl);
+  const data = await response.text();
+  const $ = cheerioLoad(data);
+  const script = $(SEARCH_VIDEO_AVAILABILITY_CONFIG.scriptValue).text();
+
+  let libraryData;
+  try {
+    libraryData = JSON.parse(script);
+  } catch (error) {
+    logger.error(
+      `Failed to parse script data for search query "${query}": ${error.message}`,
+    );
+    return [];
+  }
+
+  return libraryData;
 }

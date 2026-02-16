@@ -1,11 +1,11 @@
-import { BlurayEmbed } from "./BlurayEmbed.js";
+import { VideoEmbed } from "./VideoEmbed.js";
 import { client } from "../index.js";
 import logger from "../utils/logger.js";
 
-export class BluraySingleMessage {
+export class VideoSingleMessage {
   static async sendToUser(userId, username, items, options = {}) {
     const {
-      titlePrefix = "📀",
+      titlePrefix = "📀 ",
       color = "#00FF00",
       showAvailability = false,
       showLocation = true,
@@ -15,7 +15,7 @@ export class BluraySingleMessage {
       const user = await client.users.fetch(userId);
 
       for (const item of items) {
-        const embed = BlurayEmbed.createEmbed(item, {
+        const embed = VideoEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,
@@ -25,10 +25,10 @@ export class BluraySingleMessage {
         await user.send({ embeds: [embed] });
       }
 
-      logger.info(`Sent ${items.length} notifications to ${username}`);
+      logger.info(`The Dude sent ${items.length} notifications to ${username}`);
     } catch (error) {
       logger.error(
-        `Failed to send notification to user ${username} (${userId}):`,
+        `The Dude failed to send notification to user ${username} (${userId}):`,
         error,
       );
       throw error;
@@ -37,7 +37,7 @@ export class BluraySingleMessage {
 
   static async sendToChannel(items, options = {}) {
     const {
-      titlePrefix = "📦",
+      titlePrefix = "🚚 ",
       color = "#FFA500",
       showAvailability = false,
       showLocation = false,
@@ -55,7 +55,7 @@ export class BluraySingleMessage {
       const channel = await client.channels.fetch(channelId);
 
       for (const item of items) {
-        const embed = BlurayEmbed.createEmbed(item, {
+        const embed = VideoEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,
@@ -65,9 +65,9 @@ export class BluraySingleMessage {
         await channel.send({ embeds: [embed] });
       }
 
-      logger.info(`Sent ${items.length} notifications to channel`);
+      logger.info(`The Dude sent ${items.length} notifications to channel`);
     } catch (error) {
-      logger.error(`Failed to send channel notification:`, error);
+      logger.error(`The Dude failed to send channel notification:`, error);
       throw error;
     }
   }

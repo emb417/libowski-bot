@@ -1,7 +1,7 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
 import { getOnOrder } from "../lib/database.js";
-import { BlurayPaginatedMessage } from "../lib/BlurayPaginatedMessage.js";
+import { VideoPaginatedMessage } from "../lib/VideoPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
 export class OnOrderCommand extends Command {
@@ -31,10 +31,12 @@ export class OnOrderCommand extends Command {
       const items = await getOnOrder();
 
       if (!items || items.length === 0) {
-        return interaction.editReply(`No items found for On Order.`);
+        return interaction.editReply(
+          `Hey man, there just aren't any new items On Order.`,
+        );
       }
 
-      const paginatedMessage = new BlurayPaginatedMessage(items, {
+      const paginatedMessage = new VideoPaginatedMessage(items, {
         titlePrefix: "🚚 ",
         color: "#FFD700",
         showAvailability: false,
@@ -43,15 +45,15 @@ export class OnOrderCommand extends Command {
 
       return paginatedMessage.run(interaction, interaction.user);
     } catch (error) {
-      logger.error(`[OnOrder Command] Error:`, error);
+      logger.error({ err: error }, "Dude! [OnOrder Command] Error");
 
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
-          content: `An error occurred while fetching library items: ${error.message}`,
+          content: `Dude, an error occurred while fetching library items: ${error?.message || "Unknown error"}`,
         });
       } else {
         return interaction.reply({
-          content: `An error occurred while fetching library items: ${error.message}`,
+          content: `Dude, an error occurred while fetching library items: ${error?.message || "Unknown error"}`,
           flags: MessageFlags.Ephemeral,
         });
       }
