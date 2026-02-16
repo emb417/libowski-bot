@@ -1,8 +1,8 @@
-import { VideoEmbed } from "./VideoEmbed.js";
+import { ItemEmbed } from "./ItemEmbed.js";
 import { client } from "../index.js";
 import logger from "../utils/logger.js";
 
-export class VideoSingleMessage {
+export class ItemSingleMessage {
   static async sendToUser(userId, username, items, options = {}) {
     const {
       titlePrefix = "📀 ",
@@ -15,7 +15,7 @@ export class VideoSingleMessage {
       const user = await client.users.fetch(userId);
 
       for (const item of items) {
-        const embed = VideoEmbed.createEmbed(item, {
+        const embed = ItemEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,
@@ -55,7 +55,7 @@ export class VideoSingleMessage {
       const channel = await client.channels.fetch(channelId);
 
       for (const item of items) {
-        const embed = VideoEmbed.createEmbed(item, {
+        const embed = ItemEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,

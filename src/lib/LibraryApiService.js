@@ -22,6 +22,10 @@ const ON_ORDER_CONFIG = {
   scriptValue: 'script[type="application/json"][data-iso-key="_0"]',
 };
 
+const LOGIN_URL =
+  "https://wccls.bibliocommons.com/user/login?destination=https%3A%2F%2Fwccls.bibliocommons.com%2F";
+const HOLDS_URL = "https://wccls.bibliocommons.com/v2/holds";
+
 export async function fetchLibraryData(type) {
   const config =
     type === "available now" ? AVAILABLE_NOW_CONFIG : ON_ORDER_CONFIG;
@@ -100,4 +104,218 @@ export async function searchMediaAvailability(query, mediaType = "") {
   }
 
   return libraryData;
+}
+
+/**
+ * Login to library website and return session cookies
+ */
+export async function loginToLibrary(cardNumber, pin) {
+  try {
+    // First, get the login page to extract CSRF token
+    const loginPageResponse = await fetch(LOGIN_URL.split("?")[0]);
+    const loginPageHtml = await loginPageResponse.text();
+
+    // Extract CSRF token from the HTML (it's in a meta tag or form)
+    const csrfMatch = loginPageHtml.match(
+      /name="authenticity_token"[^>]*value="([^"]+)"/,
+    );
+    const csrfToken = csrfMatch ? csrfMatch[1] : "";
+
+    // Get cookies from the initial request
+    const setCookieHeaders = loginPageResponse.headers.getSetCookie();
+    const initialCookies = setCookieHeaders
+      .map((cookie) => cookie.split(";")[0])
+      .join("; ");
+
+    // Prepare login request body
+    const loginBody = new URLSearchParams({
+      utf8: "✓",
+      authenticity_token: csrfToken,
+      name: cardNumber,
+      user_pin: pin,
+      local: "false",
+    });
+
+    // Perform login
+    const loginResponse = await fetch(LOGIN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        Accept: "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRF-Token": csrfToken,
+        Cookie: initialCookies,
+      },
+      body: loginBody.toString(),
+    });
+
+    if (!loginResponse.ok) {
+      throw new Error(`Login failed with status: ${loginResponse.status}`);
+    }
+
+    // Collect all session cookies
+    const loginSetCookies = loginResponse.headers.getSetCookie();
+    const sessionCookies = [...setCookieHeaders, ...loginSetCookies]
+      .map((cookie) => cookie.split(";")[0])
+      .join("; ");
+
+    logger.info("Successfully logged in to library");
+    return sessionCookies;
+  } catch (error) {
+    logger.error({ err: error }, "Failed to login to library");
+    throw error;
+  }
+}
+
+/**
+ * Fetch user's holds from library website
+ */
+/**
+ * Fetch user's holds from library website
+ */
+export async function fetchHolds(sessionCookies) {
+  try {
+    const response = await fetch(HOLDS_URL, {
+      method: "GET",
+      headers: {
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Cookie: sessionCookies,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch holds: ${response.status}`);
+    }
+
+    const html = await response.text();
+
+    // Extract the JSON data from the script tag
+    const jsonMatch = html.match(
+      /<script type="application\/json" data-iso-key="_0">([\s\S]*?)<\/script>/,
+    );
+
+    if (!jsonMatch) {
+      logger.error("Could not find holds data in HTML");
+      return [];
+    }
+
+    const data = JSON.parse(jsonMatch[1]);
+
+    // Extract holds and bibs from the data
+    const holds = data.entities?.holds || {};
+    const bibs = data.entities?.bibs || {};
+
+    // Transform holds into our format
+    const transformedHolds = Object.values(holds).map((hold) => {
+      const bib = bibs[hold.metadataId] || {};
+      const briefInfo = bib.briefInfo || {};
+
+      return {
+        id: hold.metadataId,
+        title: briefInfo.title || "Unknown Title",
+        subtitle: briefInfo.subtitle || "",
+        format: briefInfo.format || "UNKNOWN",
+        publicationYear: briefInfo.publicationDate || "",
+        description: briefInfo.description || "",
+        image:
+          briefInfo.jacket?.large ||
+          briefInfo.jacket?.medium ||
+          briefInfo.jacket?.small ||
+          null,
+        url: `https://wccls.bibliocommons.com/v2/record/${hold.metadataId}`,
+        type: "hold",
+        holdStatus: hold.status,
+        pickupLocation: hold.pickupLocation?.name || "",
+        holdsPosition: hold.holdsPosition,
+        expiryDate: hold.expiryDate,
+        pickupByDate: hold.pickupByDate,
+      };
+    });
+
+    logger.info(`Retrieved ${transformedHolds.length} holds from library`);
+    return transformedHolds;
+  } catch (error) {
+    logger.error({ err: error }, "Failed to fetch holds");
+    throw error;
+  }
+}
+
+/**
+ * Parse holds from HTML response
+ */
+function parseHoldsFromHtml(html) {
+  const holds = [];
+
+  // Look for the holds data - BiblioCommons often includes JSON data in the page
+  // Try to find JSON data embedded in the page
+  const jsonMatch = html.match(/var\s+holdsData\s*=\s*(\{[\s\S]*?\});/);
+
+  if (jsonMatch) {
+    try {
+      const holdsData = JSON.parse(jsonMatch[1]);
+      // Transform to our format
+      return transformHoldsData(holdsData);
+    } catch (e) {
+      logger.error({ err: e }, "Failed to parse holds JSON");
+    }
+  }
+
+  // Fallback: parse HTML structure
+  // BiblioCommons uses specific class names for holds
+  const titleMatches = html.matchAll(
+    /<div[^>]*class="[^"]*cp-bib-title[^"]*"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>([^<]+)<\/a>/g,
+  );
+  const formatMatches = html.matchAll(
+    /<div[^>]*class="[^"]*cp-format[^"]*"[^>]*>([^<]+)<\/div>/g,
+  );
+
+  const titles = Array.from(titleMatches);
+  const formats = Array.from(formatMatches);
+
+  for (let i = 0; i < titles.length; i++) {
+    const [, url, title] = titles[i];
+    const format = formats[i] ? formats[i][1].trim() : "Unknown";
+
+    // Extract ID from URL
+    const idMatch = url.match(/\/item\/show\/(\d+)/);
+    const id = idMatch ? idMatch[1] : `hold_${i}`;
+
+    holds.push({
+      id: `S143C${id}`,
+      title: title.trim(),
+      subtitle: "",
+      format: format.toUpperCase().replace(/\s+/g, "_"),
+      url: url.startsWith("http")
+        ? url
+        : `https://wccls.bibliocommons.com${url}`,
+      type: "hold",
+    });
+  }
+
+  return holds;
+}
+
+/**
+ * Transform BiblioCommons holds data to our format
+ */
+function transformHoldsData(holdsData) {
+  // This will depend on the actual structure of the JSON data
+  // Adjust based on what we find in the actual response
+  return (
+    holdsData.items?.map((item) => ({
+      id: item.id || item.bibId,
+      title: item.title,
+      subtitle: item.subtitle || "",
+      format: item.format || "UNKNOWN",
+      publicationYear: item.publicationYear,
+      description: item.description || "",
+      image: item.coverImage,
+      url: item.url || `https://wccls.bibliocommons.com/v2/record/${item.id}`,
+      type: "hold",
+      holdStatus: item.status,
+      pickupLocation: item.pickupLocation,
+      position: item.queuePosition,
+    })) || []
+  );
 }

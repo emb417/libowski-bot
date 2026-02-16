@@ -8,7 +8,7 @@ import {
   getAvailableBibItems,
   getAllLocations,
 } from "../lib/AvailabilityService.js";
-import { VideoPaginatedMessage } from "../lib/VideoPaginatedMessage.js";
+import { ItemPaginatedMessage } from "../lib/ItemPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
 export class FindVideoCommand extends Command {
@@ -105,16 +105,13 @@ export class FindVideoCommand extends Command {
         };
       });
 
-      const paginatedMessage = new VideoPaginatedMessage(
-        itemsWithAvailability,
-        {
-          titlePrefix: "🔍 ",
-          color: "#3498DB",
-          showAvailability: true,
-          showLocation: false,
-          showReserveLink: true,
-        },
-      );
+      const paginatedMessage = new ItemPaginatedMessage(itemsWithAvailability, {
+        titlePrefix: "🔍 ",
+        color: "#3498DB",
+        showAvailability: true,
+        showLocation: false,
+        showReserveLink: true,
+      });
 
       return paginatedMessage.run(interaction, interaction.user);
     } catch (error) {

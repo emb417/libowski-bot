@@ -1,13 +1,14 @@
 import { EmbedBuilder } from "discord.js";
 
-export class VideoEmbed {
+export class ItemEmbed {
   static createEmbed(item, options = {}) {
     const {
       titlePrefix = "📀 ",
       color = "#0099FF",
       showAvailability = false,
       showLocation = false,
-      showReserveLink = false, // Add new option
+      showReserveLink = false,
+      showHoldStatus = false, // Add new option
     } = options;
 
     const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? ` ${item.subtitle}` : ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
@@ -21,7 +22,15 @@ export class VideoEmbed {
       embed.setURL(item.url);
     }
 
-    if (showAvailability && item.availability) {
+    // Show hold status instead of availability for holds
+    if (showHoldStatus && item.holdStatus) {
+      const statusText = this.formatHoldStatus(item);
+      embed.addFields({
+        name: "Hold Status",
+        value: statusText,
+        inline: false,
+      });
+    } else if (showAvailability && item.availability) {
       const availabilityText = this.formatAvailability(item.availability);
       const hasAvailability = availabilityText !== null;
 
@@ -29,7 +38,7 @@ export class VideoEmbed {
 
       // Add reserve link if requested and we have a URL
       if (showReserveLink && item.url) {
-        fieldValue += `\n[Reserve or check other locations](${item.url})`;
+        fieldValue += `\n\n[Reserve or check other locations](${item.url})`;
       }
 
       embed.addFields({
@@ -56,6 +65,33 @@ export class VideoEmbed {
     }
 
     return embed;
+  }
+
+  static formatHoldStatus(item) {
+    let statusText = "";
+
+    if (item.holdStatus === "READY_FOR_PICKUP") {
+      statusText = `✅ Ready for pickup at ${item.pickupLocation}`;
+      if (item.pickupByDate) {
+        statusText += `\nPick up by: ${item.pickupByDate}`;
+      }
+    } else if (item.holdStatus === "NOT_YET_AVAILABLE") {
+      statusText = "⏳ Not yet available";
+      if (item.holdsPosition && item.holdsPosition > 0) {
+        statusText += `\nPosition in queue: #${item.holdsPosition}`;
+      }
+      if (item.pickupLocation) {
+        statusText += `\nPickup location: ${item.pickupLocation}`;
+      }
+    } else {
+      statusText = item.holdStatus || "Unknown status";
+    }
+
+    if (item.expiryDate) {
+      statusText += `\nExpires: ${item.expiryDate}`;
+    }
+
+    return statusText;
   }
 
   static formatAvailability(availability) {

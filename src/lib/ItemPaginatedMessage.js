@@ -1,7 +1,7 @@
 import { PaginatedMessage } from "@sapphire/discord.js-utilities";
-import { VideoEmbed } from "./VideoEmbed.js";
+import { ItemEmbed } from "./ItemEmbed.js";
 
-export class VideoPaginatedMessage extends PaginatedMessage {
+export class ItemPaginatedMessage extends PaginatedMessage {
   constructor(items, options = {}) {
     super();
 
@@ -11,6 +11,7 @@ export class VideoPaginatedMessage extends PaginatedMessage {
       showAvailability = false,
       showLocation = false,
       showReserveLink = false,
+      showHoldStatus = false,
     } = options;
 
     const selectMenuOptions = [];
@@ -23,7 +24,10 @@ export class VideoPaginatedMessage extends PaginatedMessage {
 
       let description = "";
 
-      if (showAvailability && item.availability) {
+      if (showHoldStatus && item.holdStatus) {
+        const statusText = this.formatHoldStatusShort(item);
+        description = statusText.substring(0, 100);
+      } else if (showAvailability && item.availability) {
         const locations = Object.values(item.availability)
           .filter((loc) => loc.location)
           .map((loc) => loc.location);
@@ -45,12 +49,13 @@ export class VideoPaginatedMessage extends PaginatedMessage {
         value: selectMenuOptions.length.toString(),
       });
 
-      const embed = VideoEmbed.createEmbed(item, {
+      const embed = ItemEmbed.createEmbed(item, {
         titlePrefix,
         color,
         showAvailability,
         showLocation,
         showReserveLink,
+        showHoldStatus,
       });
 
       this.addPage({ embeds: [embed] });
@@ -66,5 +71,17 @@ export class VideoPaginatedMessage extends PaginatedMessage {
         };
       });
     }
+  }
+
+  formatHoldStatusShort(item) {
+    if (item.holdStatus === "READY_FOR_PICKUP") {
+      return `Ready at ${item.pickupLocation}`;
+    } else if (item.holdStatus === "NOT_YET_AVAILABLE") {
+      if (item.holdsPosition && item.holdsPosition > 0) {
+        return `Position ${item.holdsPosition}`;
+      }
+      return "Not ready";
+    }
+    return item.holdStatus || "Unknown status";
   }
 }

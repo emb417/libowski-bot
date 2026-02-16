@@ -1,7 +1,7 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
 import { getOnOrder } from "../lib/database.js";
-import { VideoPaginatedMessage } from "../lib/VideoPaginatedMessage.js";
+import { ItemPaginatedMessage } from "../lib/ItemPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
 export class OnOrderCommand extends Command {
@@ -36,7 +36,7 @@ export class OnOrderCommand extends Command {
         );
       }
 
-      const paginatedMessage = new VideoPaginatedMessage(items, {
+      const paginatedMessage = new ItemPaginatedMessage(items, {
         titlePrefix: "🚚 ",
         color: "#FFD700",
         showAvailability: false,

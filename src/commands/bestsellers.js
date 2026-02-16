@@ -1,7 +1,7 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
 import { getBestSellers } from "../lib/database.js";
-import { VideoPaginatedMessage } from "../lib/VideoPaginatedMessage.js";
+import { ItemPaginatedMessage } from "../lib/ItemPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
 export class BestSellersCommand extends Command {
@@ -36,7 +36,7 @@ export class BestSellersCommand extends Command {
         );
       }
 
-      const paginatedMessage = new VideoPaginatedMessage(items, {
+      const paginatedMessage = new ItemPaginatedMessage(items, {
         titlePrefix: "📀 ",
         color: "#0099FF",
         showAvailability: true,
