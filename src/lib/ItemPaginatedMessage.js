@@ -17,7 +17,7 @@ export class ItemPaginatedMessage extends PaginatedMessage {
 
     const selectMenuOptions = [];
 
-    for (const item of items) {
+    for (const item of items.slice(0, 25)) {
       if (!item.title) continue;
 
       const fullTitle = `${titlePrefix} ${item.title} ${item.subtitle || ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
