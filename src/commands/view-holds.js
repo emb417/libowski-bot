@@ -28,21 +28,15 @@ export class ViewHoldsCommand extends Command {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      logger.info(
-        `[/view-holds] User ${interaction.user.username} is checking their holds`,
-      );
-
-      // Get user's library card
       const libraryCard = await getLibraryCard(interaction.user.id);
 
       if (!libraryCard) {
         return interaction.editReply({
           content:
-            "You don't have a library card linked. Use `/link-account` to link your card first.",
+            "Yeah, well, you know, that's just like, uh, you don't even have a library card linked. Use `/link-account` to link your card first.",
         });
       }
 
-      // Login to library
       logger.debug(
         `[ViewHolds] Logging in to library for ${interaction.user.username}`,
       );
@@ -51,7 +45,6 @@ export class ViewHoldsCommand extends Command {
         libraryCard.pin,
       );
 
-      // Fetch holds
       logger.debug(
         `[ViewHolds] Fetching holds for ${interaction.user.username}`,
       );
@@ -63,9 +56,7 @@ export class ViewHoldsCommand extends Command {
         });
       }
 
-      // Sort holds: Ready for pickup first, then by position in queue
       const sortedHolds = holds.sort((a, b) => {
-        // Ready for pickup items come first
         if (
           a.holdStatus === "READY_FOR_PICKUP" &&
           b.holdStatus !== "READY_FOR_PICKUP"
@@ -79,7 +70,6 @@ export class ViewHoldsCommand extends Command {
           return 1;
         }
 
-        // If both are ready for pickup, sort by pickup date (earliest first)
         if (
           a.holdStatus === "READY_FOR_PICKUP" &&
           b.holdStatus === "READY_FOR_PICKUP"
@@ -90,7 +80,6 @@ export class ViewHoldsCommand extends Command {
           return 0;
         }
 
-        // If both are not yet available, sort by position in queue
         if (
           a.holdStatus === "NOT_YET_AVAILABLE" &&
           b.holdStatus === "NOT_YET_AVAILABLE"
@@ -100,11 +89,9 @@ export class ViewHoldsCommand extends Command {
           return posA - posB;
         }
 
-        // Default: maintain original order
         return 0;
       });
 
-      // Display holds using paginated message
       const paginatedMessage = new ItemPaginatedMessage(sortedHolds, {
         titlePrefix: "⏳ ",
         color: "#9B59B6",

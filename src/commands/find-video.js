@@ -62,10 +62,6 @@ export class FindVideoCommand extends Command {
       const query = interaction.options.getString("query", true);
       const mediaType = interaction.options.getString("mediatype");
 
-      logger.info(
-        `[/find-video] User ${interaction.user.username} searched for "${query}" (mediaType: ${mediaType || "all"}).`,
-      );
-
       const libraryData = await searchMediaAvailability(query, mediaType);
       const titles = transformToTitles(libraryData, "search_result");
 

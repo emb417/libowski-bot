@@ -27,10 +27,6 @@ export class UnlinkAccountCommand extends Command {
       // Always reply ephemerally for privacy
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      logger.info(
-        `[/unlink-account] User ${interaction.user.username} is unlinking their library card`,
-      );
-
       await unlinkLibraryCard(interaction.user.id);
 
       return interaction.editReply({

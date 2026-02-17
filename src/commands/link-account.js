@@ -39,15 +39,10 @@ export class LinkAccountCommand extends Command {
 
   async chatInputRun(interaction) {
     try {
-      // Always reply ephemerally for privacy
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const cardNumber = interaction.options.getString("card-number", true);
       const pin = interaction.options.getString("pin", true);
-
-      logger.info(
-        `[/link-account] User ${interaction.user.username} is linking their library card`,
-      );
 
       // Save to database
       await linkLibraryCard(
