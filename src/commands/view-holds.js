@@ -102,7 +102,6 @@ export class ViewHoldsCommand extends Command {
         color: "#9B59B6",
         showAvailability: false,
         showLocation: false,
-        showReserveLink: false,
         showHoldStatus: true,
         accountId,
       });

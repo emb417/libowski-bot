@@ -12,7 +12,6 @@ export class ItemEmbed {
       color = "#0099FF",
       showAvailability = false,
       showLocation = false,
-      showReserveLink = false,
       showHoldStatus = false,
       showCheckoutStatus = false,
       showHoldButton = false,
@@ -53,10 +52,6 @@ export class ItemEmbed {
       const hasAvailability = availabilityText !== null;
 
       let fieldValue = hasAvailability ? availabilityText : "Not available.";
-
-      if (showReserveLink && item.url) {
-        fieldValue += `\n\n[Reserve or check other locations](${item.url})`;
-      }
 
       embed.addFields({
         name: "Available At",

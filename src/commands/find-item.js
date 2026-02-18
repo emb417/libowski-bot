@@ -161,7 +161,6 @@ export class FindItemCommand extends Command {
         color: "#2ECC71",
         showAvailability: true,
         showLocation: false,
-        showReserveLink: false,
         showHoldStatus: true,
         showCheckoutStatus: false,
         accountId,

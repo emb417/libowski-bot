@@ -73,7 +73,6 @@ export class ViewCheckedOutCommand extends Command {
         color: "#3498DB",
         showAvailability: false,
         showLocation: false,
-        showReserveLink: false,
         showHoldStatus: false,
         showCheckoutStatus: true,
       });
