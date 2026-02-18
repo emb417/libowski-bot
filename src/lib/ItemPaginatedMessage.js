@@ -62,18 +62,21 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       const { embed, components } = ItemEmbed.createEmbed(item, {
         titlePrefix,
         color,
-        showAvailability,
-        showLocation,
-        showHoldStatus,
-        showCheckoutStatus,
-        showHoldButton: true,
-        metadataId: item.id,
-        hasExistingHold: !!item.holdInfo,
-        holdId: item.holdInfo?.id ?? null,
         accountId,
         branchId,
-        showRenewButton: showRenewButton && !!item.canRenew,
         checkoutId: item.checkoutId,
+        holdId: item.holdInfo?.id ?? null,
+        metadataId: item.id,
+        hasExistingHold: !!item.holdInfo && item.canCancel,
+        showAvailability,
+        showLocation,
+        showCheckoutStatus,
+        showRenewButton: showRenewButton && !!item.canRenew,
+        showHoldStatus,
+        showPlaceHoldButton: !item.holdInfo,
+        showCancelHoldButton: !!item.canCancel,
+        showSuspendButton: !!item.canSuspend,
+        showResumeButton: !!item.canResume,
       });
       this.customComponents.push(components);
       this.addPage({ embeds: [embed], components });
@@ -118,7 +121,12 @@ export class ItemPaginatedMessage extends PaginatedMessage {
 
   formatHoldStatusShort(item) {
     if (item.holdStatus === "READY_FOR_PICKUP") {
+      if (item.materialType === "DIGITAL") {
+        return "Ready to checkout on Libby";
+      }
       return `Ready at ${item.pickupLocation}`;
+    } else if (item.holdStatus === "IN_TRANSIT") {
+      return `In transit to ${item.pickupLocation}`;
     } else if (item.holdStatus === "NOT_YET_AVAILABLE") {
       if (item.holdsPosition && item.holdsPosition > 0) {
         return `Position ${item.holdsPosition}`;

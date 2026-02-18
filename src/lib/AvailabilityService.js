@@ -21,15 +21,22 @@ export async function getAvailableBibItems(items) {
       const response = await fetch(AVAILABILITY_URL(item.id));
       const data = await response.text();
       const bibItemsData = JSON.parse(data).entities.bibItems;
+      const availabilitiesData = JSON.parse(data).entities.availabilities;
+      const availability = availabilitiesData[item.id];
+      const heldCopies = availability?.heldCopies ?? 0;
+      const totalCopies = availability?.totalCopies ?? 0;
 
       const availableForItem = Object.values(bibItemsData)
         .filter((bibItem) => bibItem.availability.status === "AVAILABLE")
-        .map((bibItem) => ({ ...bibItem, id: item.id }));
+        .map((bibItem) => ({
+          ...bibItem,
+          id: item.id,
+          heldCopies,
+          totalCopies,
+        }));
 
       logger.debug(
-        `${counter}. ${availableForItem.length} of ${
-          Object.values(bibItemsData).length
-        } bibItems for ${item.title}.`,
+        `${counter}. ${availableForItem.length} of ${Object.values(bibItemsData).length} bibItems for ${item.title}. ${heldCopies}/${totalCopies} held.`,
       );
 
       availableBibItems.push(...availableForItem);

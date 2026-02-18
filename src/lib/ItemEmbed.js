@@ -10,25 +10,27 @@ export class ItemEmbed {
     const {
       titlePrefix = "📀 ",
       color = "#0099FF",
+      metadataId = null,
+      accountId = null,
+      branchId = null,
+      checkoutId = null,
+      holdId = null,
       showAvailability = false,
       showLocation = false,
       showHoldStatus = false,
       showCheckoutStatus = false,
-      showHoldButton = false,
-      metadataId = null,
-      hasExistingHold = false,
-      holdId = null,
-      accountId = null,
-      branchId = null,
       showRenewButton = false,
-      checkoutId = null,
+      showPlaceHoldButton = false,
+      showCancelHoldButton = false,
+      showSuspendButton = false,
+      showResumeButton = false,
     } = options;
 
     const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? `: ${item.subtitle}` : ""} ${item.edition || ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
     const description = item.description || "No Description.";
     const truncated =
       description.length > 1000
-        ? description.substring(0, 997) + "..."
+        ? description.substring(0, 597) + "..."
         : description;
 
     const embed = new EmbedBuilder()
@@ -45,14 +47,14 @@ export class ItemEmbed {
       embed.addFields({
         name: "Checkout Status",
         value: statusText,
-        inline: false,
+        inline: true,
       });
     } else if (showHoldStatus && (item.holdStatus || item.holdInfo)) {
       const statusText = this.formatHoldStatus(item);
       embed.addFields({
         name: "Hold Status",
         value: statusText,
-        inline: false,
+        inline: true,
       });
     } else if (showAvailability && item.availability) {
       const availabilityText = this.formatAvailability(item.availability);
@@ -63,14 +65,22 @@ export class ItemEmbed {
       embed.addFields({
         name: "Available At",
         value: fieldValue,
-        inline: false,
+        inline: true,
       });
     }
 
     if (showLocation && item.location) {
       embed.addFields({
-        name: "📍 Location",
+        name: "📍 Not Holdable Now At",
         value: item.location,
+        inline: true,
+      });
+    }
+
+    if (item.totalCopies > 0) {
+      embed.addFields({
+        name: "Holds",
+        value: `${item.heldCopies} holds on ${item.totalCopies} copies`,
         inline: true,
       });
     }
@@ -84,30 +94,60 @@ export class ItemEmbed {
     }
 
     const components = [];
+    const rowButtons = [];
 
-    if (showHoldButton && metadataId && accountId && (branchId || holdId)) {
-      const button = hasExistingHold
-        ? new ButtonBuilder()
-            .setCustomId(`cancel_hold:${metadataId}:${holdId}:${accountId}`)
-            .setLabel("Cancel Hold")
-            .setStyle(ButtonStyle.Danger)
-            .setEmoji("🗑️")
-        : new ButtonBuilder()
-            .setCustomId(`place_hold:${metadataId}:${accountId}:${branchId}`)
-            .setLabel("Place Hold")
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji("📚");
-      components.push(new ActionRowBuilder().addComponents(button));
+    if (showPlaceHoldButton && metadataId && accountId && branchId) {
+      rowButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`place_hold:${metadataId}:${accountId}:${branchId}`)
+          .setLabel("Place Hold")
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji("📚"),
+      );
     }
 
-    if (showRenewButton && checkoutId && metadataId) {
-      const renewButton = new ButtonBuilder()
-        .setCustomId(`renew_checkout:${checkoutId}:${accountId}`)
-        .setLabel("Renew")
-        .setStyle(ButtonStyle.Success)
-        .setEmoji("🔄");
+    if (showCancelHoldButton && metadataId && holdId && accountId) {
+      rowButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`cancel_hold:${metadataId}:${holdId}:${accountId}`)
+          .setLabel("Cancel Hold")
+          .setStyle(ButtonStyle.Danger)
+          .setEmoji("🗑️"),
+      );
+    }
 
-      components.push(new ActionRowBuilder().addComponents(renewButton));
+    if (showSuspendButton && holdId && accountId) {
+      rowButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`suspend_hold:${holdId}:${accountId}`)
+          .setLabel("Pause Hold")
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji("⏸️"),
+      );
+    }
+
+    if (showResumeButton && holdId && accountId) {
+      rowButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`resume_hold:${holdId}:${accountId}`)
+          .setLabel("Resume Hold")
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji("▶️"),
+      );
+    }
+
+    if (showRenewButton && checkoutId && accountId) {
+      rowButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`renew_checkout:${checkoutId}:${accountId}`)
+          .setLabel("Renew")
+          .setStyle(ButtonStyle.Success)
+          .setEmoji("🔄"),
+      );
+    }
+
+    if (rowButtons.length > 0) {
+      components.push(new ActionRowBuilder().addComponents(...rowButtons));
     }
 
     return { embed, components };
@@ -122,7 +162,7 @@ export class ItemEmbed {
       hold.holdStatus === "READY_FOR_PICKUP"
     ) {
       if (hold.pickupLocation) {
-        statusText = `📍 Ready for pickup at ${hold.pickupLocation}`;
+        statusText = `📍 Ready for pickup at:\n${hold.pickupLocation}`;
       } else {
         statusText = `📱 Ready to checkout in Libby.`;
       }
@@ -130,24 +170,28 @@ export class ItemEmbed {
         statusText += `\nPick up by: ${hold.pickupByDate}`;
       }
     } else if (
+      hold.status === "IN_TRANSIT" ||
+      hold.holdStatus === "IN_TRANSIT"
+    ) {
+      statusText = `🚚 In transit to:\n${hold.pickupLocation}`;
+    } else if (
       hold.status === "NOT_YET_AVAILABLE" ||
       hold.holdStatus === "NOT_YET_AVAILABLE"
     ) {
       statusText = "⏳ Not yet available";
       if (hold.position && hold.position > 0) {
-        statusText += `\nPosition in queue: #${hold.position}`;
+        statusText += `\n#${hold.position} in queue`;
       } else if (hold.holdsPosition && hold.holdsPosition > 0) {
-        statusText += `\nPosition in queue: #${hold.holdsPosition}`;
+        statusText += `\n#${hold.holdsPosition} in queue`;
       }
       if (hold.pickupLocation) {
-        statusText += `\nPickup location: ${hold.pickupLocation}`;
+        statusText += `\nPickup at: ${hold.pickupLocation}`;
+      }
+      if (hold.expiryDate) {
+        statusText += `\nExpires: ${hold.expiryDate}`;
       }
     } else {
       statusText = hold.status || hold.holdStatus || "Unknown status";
-    }
-
-    if (hold.expiryDate) {
-      statusText += `\nExpires: ${hold.expiryDate}`;
     }
 
     return statusText;

@@ -50,7 +50,7 @@ export class ViewCheckedOutCommand extends Command {
         });
       }
 
-      const { items: checkedOutItems, accoutId } =
+      const { items: checkedOutItems, accountId } =
         await fetchCheckedOut(sessionCookies);
 
       if (!checkedOutItems || checkedOutItems.length === 0) {
@@ -76,7 +76,7 @@ export class ViewCheckedOutCommand extends Command {
         showHoldStatus: false,
         showCheckoutStatus: true,
         showRenewButton: true,
-        accountId: accoutId,
+        accountId,
       });
 
       return paginatedMessage.run(interaction, interaction.user);

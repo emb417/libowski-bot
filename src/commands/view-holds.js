@@ -49,37 +49,26 @@ export class ViewHoldsCommand extends Command {
         });
       }
 
+      const STATUS_ORDER = {
+        READY_FOR_PICKUP: 0,
+        IN_TRANSIT: 1,
+        NOT_YET_AVAILABLE: 2,
+      };
+
       const sortedHolds = holds.sort((a, b) => {
-        if (
-          a.holdStatus === "READY_FOR_PICKUP" &&
-          b.holdStatus !== "READY_FOR_PICKUP"
-        ) {
-          return -1;
-        }
-        if (
-          a.holdStatus !== "READY_FOR_PICKUP" &&
-          b.holdStatus === "READY_FOR_PICKUP"
-        ) {
-          return 1;
-        }
+        const statusA = STATUS_ORDER[a.holdStatus] ?? 99;
+        const statusB = STATUS_ORDER[b.holdStatus] ?? 99;
+        if (statusA !== statusB) return statusA - statusB;
 
         if (
           a.holdStatus === "READY_FOR_PICKUP" &&
-          b.holdStatus === "READY_FOR_PICKUP"
+          a.pickupByDate &&
+          b.pickupByDate
         ) {
-          if (a.pickupByDate && b.pickupByDate) {
-            return new Date(a.pickupByDate) - new Date(b.pickupByDate);
-          }
-          return 0;
+          return new Date(a.pickupByDate) - new Date(b.pickupByDate);
         }
-
-        if (
-          a.holdStatus === "NOT_YET_AVAILABLE" &&
-          b.holdStatus === "NOT_YET_AVAILABLE"
-        ) {
-          const posA = a.holdsPosition || 999999;
-          const posB = b.holdsPosition || 999999;
-          return posA - posB;
+        if (a.holdStatus === "NOT_YET_AVAILABLE") {
+          return (a.holdsPosition ?? 999999) - (b.holdsPosition ?? 999999);
         }
 
         return 0;
@@ -88,10 +77,11 @@ export class ViewHoldsCommand extends Command {
       const mappedHolds = sortedHolds.map((hold) => ({
         ...hold,
         holdInfo: {
-          id: hold.holdsId,
+          id: hold.holdId,
           status: hold.holdStatus,
           position: hold.holdsPosition,
           pickupLocation: hold.pickupLocation,
+          pickupByDate: hold.pickupByDate,
           expiryDate: hold.expiryDate,
         },
       }));

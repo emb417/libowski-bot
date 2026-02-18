@@ -193,9 +193,11 @@ export async function fetchHolds(sessionCookies) {
     const transformedHolds = Object.values(holds).map((hold) => {
       const bib = bibs[hold.metadataId] || {};
       const briefInfo = bib.briefInfo || {};
+      const bibAvailability = bib.availability || {};
 
       return {
         id: hold.metadataId,
+        holdId: hold.holdsId,
         title: briefInfo.title || "Unknown Title",
         subtitle: briefInfo.subtitle || "",
         format: briefInfo.format || "UNKNOWN",
@@ -208,7 +210,13 @@ export async function fetchHolds(sessionCookies) {
           null,
         url: `https://wccls.bibliocommons.com/v2/record/${hold.metadataId}`,
         type: "hold",
+        materialType: hold.materialType || "",
         holdStatus: hold.status,
+        heldCopies: bibAvailability.heldCopies ?? 0,
+        totalCopies: bibAvailability.totalCopies ?? 0,
+        canCancel: hold.actions?.includes("cancel") ?? false,
+        canSuspend: hold.actions?.includes("suspend") ?? false,
+        canResume: hold.actions?.includes("activate") ?? false,
         pickupLocation: hold.pickupLocation?.name || "",
         holdsPosition: hold.holdsPosition,
         expiryDate: hold.expiryDate,
@@ -219,6 +227,7 @@ export async function fetchHolds(sessionCookies) {
     logger.info(
       `The Dude retrieved ${transformedHolds.length} holds from library`,
     );
+
     return { holds: transformedHolds, accountId };
   } catch (error) {
     logger.error({ err: error }, "Failed to fetch holds");
@@ -324,6 +333,50 @@ export async function cancelHold(
     logger.error({ err: error }, `Error cancelling hold ${holdId}`);
     throw error;
   }
+}
+
+export async function suspendHold(sessionCookies, holdId, accountId) {
+  const startDate = new Date();
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + 1);
+
+  const url = `https://gateway.bibliocommons.com/v2/libraries/wccls/holds?locale=en-US`;
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { ...HEADERS_JSON, Cookie: sessionCookies },
+    body: JSON.stringify({
+      holdIds: [holdId],
+      accountId: Number(accountId),
+      suspended: {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString().slice(0, 10),
+        status: true,
+      },
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok)
+    throw new Error(data.error?.message || "Unknown error suspending hold");
+  logger.info(`Successfully suspended hold ${holdId}`);
+  return { success: true };
+}
+
+export async function resumeHold(sessionCookies, holdId, accountId) {
+  const url = `https://gateway.bibliocommons.com/v2/libraries/wccls/holds?locale=en-US`;
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { ...HEADERS_JSON, Cookie: sessionCookies },
+    body: JSON.stringify({
+      accountId: Number(accountId),
+      holdIds: [holdId],
+      suspended: { status: false },
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok)
+    throw new Error(data.error?.message || "Unknown error resuming hold");
+  logger.info(`Successfully resumed hold ${holdId}`);
+  return { success: true };
 }
 
 export async function fetchCheckedOut(sessionCookies) {

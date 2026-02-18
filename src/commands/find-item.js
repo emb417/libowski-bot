@@ -19,7 +19,6 @@ export class FindItemCommand extends Command {
       ...options,
       name: "find-item",
       description: "Search for any library item and place holds.",
-      aliases: ["find", "fi", "search"],
     });
   }
 
@@ -119,6 +118,9 @@ export class FindItemCommand extends Command {
           (bib) => bib.id === title.id,
         );
 
+        const heldCopies = availabilityForTitle[0]?.heldCopies ?? 0;
+        const totalCopies = availabilityForTitle[0]?.totalCopies ?? 0;
+
         const locations = getAllLocations();
 
         const structuredAvailability = locations.reduce((acc, location) => {
@@ -139,9 +141,11 @@ export class FindItemCommand extends Command {
         return {
           ...title,
           availability: structuredAvailability,
+          heldCopies,
+          totalCopies,
           holdInfo: holdInfo
             ? {
-                id: holdInfo.holdsId,
+                id: holdInfo.holdId,
                 status: holdInfo.status,
                 position: holdInfo.holdsPosition,
                 pickupLocation: holdInfo.pickupLocation?.name,
