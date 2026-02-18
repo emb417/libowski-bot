@@ -36,18 +36,11 @@ export class ViewHoldsCommand extends Command {
             "Yeah, well, you know, that's just like, uh, you don't even have a library card linked. Use `/link-account` to link your card first.",
         });
       }
-
-      logger.debug(
-        `[ViewHolds] Logging in to library for ${interaction.user.username}`,
-      );
       const sessionCookies = await loginToLibrary(
         libraryCard.cardNumber,
         libraryCard.pin,
       );
 
-      logger.debug(
-        `[ViewHolds] Fetching holds for ${interaction.user.username}`,
-      );
       const holds = await fetchHolds(sessionCookies);
 
       if (!holds || holds.length === 0) {

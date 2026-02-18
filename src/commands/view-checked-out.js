@@ -28,10 +28,6 @@ export class ViewCheckedOutCommand extends Command {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      logger.info(
-        `[/view-checked-out] User ${interaction.user.username} is checking their checked out items`,
-      );
-
       // Get user's library card
       const libraryCard = await getLibraryCard(interaction.user.id);
 
@@ -42,10 +38,6 @@ export class ViewCheckedOutCommand extends Command {
         });
       }
 
-      // Login to library
-      logger.debug(
-        `[ViewCheckedOut] Logging in to library for ${interaction.user.username}`,
-      );
       const sessionCookies = await loginToLibrary(
         libraryCard.cardNumber,
         libraryCard.pin,
@@ -58,10 +50,6 @@ export class ViewCheckedOutCommand extends Command {
         });
       }
 
-      // Fetch checked out items
-      logger.debug(
-        `[ViewCheckedOut] Fetching checked out items for ${interaction.user.username}`,
-      );
       const checkedOutItems = await fetchCheckedOut(sessionCookies);
 
       if (!checkedOutItems || checkedOutItems.length === 0) {

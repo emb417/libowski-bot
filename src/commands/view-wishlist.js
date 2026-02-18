@@ -35,7 +35,7 @@ export class ViewWishlistCommand extends Command {
       if (items.length === 0) {
         return interaction.editReply({
           content:
-            "Common, your wishlist is empty, man! Use `/add-to-wishlist` to add items.",
+            "Come on, man, I mean, your wishlist is empty, man! Use `/add-to-wishlist` to add items.",
         });
       }
 
