@@ -148,9 +148,7 @@ export async function getWishListItems(userId) {
     return [];
   }
 
-  logger.info(
-    `The Dude retrieved ${user.wishlist.length} wishlist items for user ${user.username}`,
-  );
+  logger.info(`The Dude retrieved ${user.wishlist.length} wishlist items.`);
   return user.wishlist;
 }
 
