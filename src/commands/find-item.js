@@ -19,7 +19,7 @@ export class FindItemCommand extends Command {
       ...options,
       name: "find-item",
       description: "Search for any library item and place holds.",
-      aliases: ["find"],
+      aliases: ["find", "fi", "search"],
     });
   }
 
