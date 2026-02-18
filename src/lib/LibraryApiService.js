@@ -172,6 +172,7 @@ export async function fetchHolds(sessionCookies) {
     // Extract holds and bibs from the data
     const holds = jsonData.entities?.holds || {};
     const bibs = jsonData.entities?.bibs || {};
+    const accountId = Object.keys(jsonData.entities?.accounts ?? {})[0];
 
     // Transform holds into our format
     const transformedHolds = Object.values(holds).map((hold) => {
@@ -203,7 +204,7 @@ export async function fetchHolds(sessionCookies) {
     logger.info(
       `The Dude retrieved ${transformedHolds.length} holds from library`,
     );
-    return transformedHolds;
+    return { holds: transformedHolds, accountId };
   } catch (error) {
     logger.error({ err: error }, "Failed to fetch holds");
     throw error;

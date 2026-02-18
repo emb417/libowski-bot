@@ -42,7 +42,7 @@ export class ViewHoldsCommand extends Command {
         libraryCard.pin,
       );
 
-      const holds = await fetchHolds(sessionCookies);
+      const { holds, accountId } = await fetchHolds(sessionCookies);
 
       if (!holds || holds.length === 0) {
         return interaction.editReply({
@@ -86,13 +86,25 @@ export class ViewHoldsCommand extends Command {
         return 0;
       });
 
-      const paginatedMessage = new ItemPaginatedMessage(sortedHolds, {
+      const mappedHolds = sortedHolds.map((hold) => ({
+        ...hold,
+        holdInfo: {
+          id: hold.holdsId,
+          status: hold.holdStatus,
+          position: hold.holdsPosition,
+          pickupLocation: hold.pickupLocation,
+          expiryDate: hold.expiryDate,
+        },
+      }));
+
+      const paginatedMessage = new ItemPaginatedMessage(mappedHolds, {
         titlePrefix: "⏳ ",
         color: "#9B59B6",
         showAvailability: false,
         showLocation: false,
         showReserveLink: false,
         showHoldStatus: true,
+        accountId,
       });
 
       return paginatedMessage.run(interaction, interaction.user);
