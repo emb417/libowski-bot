@@ -32,7 +32,7 @@ export class ViewOrderedCommand extends Command {
 
       if (!items || items.length === 0) {
         return interaction.editReply(
-          `Hey man, there just aren't any new items ordered recently.`,
+          `So look, man, there just aren't any new items ordered recently, you know, man.`,
         );
       }
 

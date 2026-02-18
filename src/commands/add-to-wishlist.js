@@ -49,7 +49,7 @@ export class AddToWishlistCommand extends Command {
       const embed = new EmbedBuilder()
         .setTitle("✅ Added to Wishlist")
         .setDescription(
-          `Hey man, **${title}** has been added to your wishlist!`,
+          `So like, **${title}** has been added to your wishlist, man!`,
         )
         .setColor(0x57f287)
         .setFooter({ text: `Total Items: ${result.totalItems}` });

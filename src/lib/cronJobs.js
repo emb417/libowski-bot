@@ -121,7 +121,7 @@ async function runAvailableNowTask() {
         );
 
         logger.info(
-          `Sent notification to ${notificationData.username} for ${notificationData.items.length} items`,
+          `The Dude notified ${notificationData.username} for ${notificationData.items.length} items`,
         );
       }
     } else {
@@ -180,7 +180,7 @@ async function runOnOrderTask() {
       );
 
       logger.info(
-        `Sent channel notification for ${newOnOrderTitles.length} new on order items`,
+        `The Dude notified channel for ${newOnOrderTitles.length} new on order items`,
       );
     } else {
       logger.info("No new titles on order.");
@@ -229,7 +229,7 @@ async function runHoldsReadyTask() {
           });
 
           logger.info(
-            `Notified ${user.username} that "${hold.title}" is ready for pickup`,
+            `The Dude notified ${user.username} that "${hold.title}" is ready for pickup`,
           );
         }
       } catch (error) {

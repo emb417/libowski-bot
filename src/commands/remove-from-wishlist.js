@@ -69,7 +69,7 @@ export class RemoveFromWishlistCommand extends Command {
       const embed = new EmbedBuilder()
         .setTitle("🗑️ Removed from Wishlist")
         .setDescription(
-          `Hey man, **${title}** has been removed from your wishlist!`,
+          `So like, **${title}** has been removed from your wishlist, man!`,
         )
         .setColor(0xed4245)
         .setFooter({

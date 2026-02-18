@@ -32,7 +32,7 @@ export class ViewBestSellersCommand extends Command {
 
       if (!items || items.length === 0) {
         return interaction.editReply(
-          `Hey man, there just aren't any available now.`,
+          `So look, man, there just aren't any available right now, okay, man.`,
         );
       }
 
