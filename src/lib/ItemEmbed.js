@@ -1,4 +1,9 @@
-import { EmbedBuilder } from "discord.js";
+import {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from "discord.js";
 
 export class ItemEmbed {
   static createEmbed(item, options = {}) {
@@ -10,9 +15,15 @@ export class ItemEmbed {
       showReserveLink = false,
       showHoldStatus = false,
       showCheckoutStatus = false,
+      showHoldButton = false,
+      metadataId = null,
+      hasExistingHold = false,
+      holdId = null,
+      accountId = null,
+      branchId = null,
     } = options;
 
-    const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? ` ${item.subtitle}` : ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
+    const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? `: ${item.subtitle}` : ""} ${item.edition || ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
 
     const embed = new EmbedBuilder()
       .setTitle(fullTitle)
@@ -30,7 +41,7 @@ export class ItemEmbed {
         value: statusText,
         inline: false,
       });
-    } else if (showHoldStatus && item.holdStatus) {
+    } else if (showHoldStatus && (item.holdStatus || item.holdInfo)) {
       const statusText = this.formatHoldStatus(item);
       embed.addFields({
         name: "Hold Status",
@@ -43,7 +54,6 @@ export class ItemEmbed {
 
       let fieldValue = hasAvailability ? availabilityText : "Not available.";
 
-      // Add reserve link if requested and we have a URL
       if (showReserveLink && item.url) {
         fieldValue += `\n\n[Reserve or check other locations](${item.url})`;
       }
@@ -71,31 +81,58 @@ export class ItemEmbed {
       embed.setFooter({ text: `ID: ${item.id}` });
     }
 
-    return embed;
+    const components = [];
+
+    if (showHoldButton && metadataId && accountId) {
+      const button = hasExistingHold
+        ? new ButtonBuilder()
+            .setCustomId(`cancel_hold:${metadataId}:${holdId}:${accountId}`)
+            .setLabel("Cancel Hold")
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji("🗑️")
+        : new ButtonBuilder()
+            .setCustomId(`place_hold:${metadataId}:${accountId}:${branchId}`)
+            .setLabel("Place Hold")
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji("📚");
+
+      components.push(new ActionRowBuilder().addComponents(button));
+    }
+
+    return { embed, components };
   }
 
   static formatHoldStatus(item) {
     let statusText = "";
+    const hold = item.holdInfo || item;
 
-    if (item.holdStatus === "READY_FOR_PICKUP") {
-      statusText = `✅ Ready for pickup at ${item.pickupLocation}`;
-      if (item.pickupByDate) {
-        statusText += `\nPick up by: ${item.pickupByDate}`;
+    if (
+      hold.status === "READY_FOR_PICKUP" ||
+      hold.holdStatus === "READY_FOR_PICKUP"
+    ) {
+      statusText = `✅ Ready for pickup at ${hold.pickupLocation}`;
+      if (hold.pickupByDate) {
+        statusText += `\nPick up by: ${hold.pickupByDate}`;
       }
-    } else if (item.holdStatus === "NOT_YET_AVAILABLE") {
+    } else if (
+      hold.status === "NOT_YET_AVAILABLE" ||
+      hold.holdStatus === "NOT_YET_AVAILABLE"
+    ) {
       statusText = "⏳ Not yet available";
-      if (item.holdsPosition && item.holdsPosition > 0) {
-        statusText += `\nPosition in queue: #${item.holdsPosition}`;
+      if (hold.position && hold.position > 0) {
+        statusText += `\nPosition in queue: #${hold.position}`;
+      } else if (hold.holdsPosition && hold.holdsPosition > 0) {
+        statusText += `\nPosition in queue: #${hold.holdsPosition}`;
       }
-      if (item.pickupLocation) {
-        statusText += `\nPickup location: ${item.pickupLocation}`;
+      if (hold.pickupLocation) {
+        statusText += `\nPickup location: ${hold.pickupLocation}`;
       }
     } else {
-      statusText = item.holdStatus || "Unknown status";
+      statusText = hold.status || hold.holdStatus || "Unknown status";
     }
 
-    if (item.expiryDate) {
-      statusText += `\nExpires: ${item.expiryDate}`;
+    if (hold.expiryDate) {
+      statusText += `\nExpires: ${hold.expiryDate}`;
     }
 
     return statusText;

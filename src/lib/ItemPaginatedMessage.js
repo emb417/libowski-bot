@@ -1,9 +1,12 @@
 import { PaginatedMessage } from "@sapphire/discord.js-utilities";
 import { ItemEmbed } from "./ItemEmbed.js";
 
+import logger from "../utils/logger.js";
+
 export class ItemPaginatedMessage extends PaginatedMessage {
   constructor(items, options = {}) {
     super();
+    this.customComponents = [];
 
     const {
       titlePrefix = "📀 ",
@@ -13,6 +16,8 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       showReserveLink = false,
       showHoldStatus = false,
       showCheckoutStatus = false,
+      accountId = null,
+      branchId = null,
     } = options;
 
     const selectMenuOptions = [];
@@ -20,7 +25,7 @@ export class ItemPaginatedMessage extends PaginatedMessage {
     for (const item of items.slice(0, 25)) {
       if (!item.title) continue;
 
-      const fullTitle = `${titlePrefix} ${item.title} ${item.subtitle || ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
+      const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? `: ${item.subtitle}` : ""}${item.edition ? ` ${item.edition}` : ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
       const label = fullTitle.substring(0, 100);
 
       let description = "";
@@ -54,7 +59,7 @@ export class ItemPaginatedMessage extends PaginatedMessage {
         value: selectMenuOptions.length.toString(),
       });
 
-      const embed = ItemEmbed.createEmbed(item, {
+      const { embed, components } = ItemEmbed.createEmbed(item, {
         titlePrefix,
         color,
         showAvailability,
@@ -62,9 +67,15 @@ export class ItemPaginatedMessage extends PaginatedMessage {
         showReserveLink,
         showHoldStatus,
         showCheckoutStatus,
+        showHoldButton: true,
+        metadataId: item.id,
+        hasExistingHold: !!item.holdInfo,
+        holdId: item.holdInfo?.id ?? null,
+        accountId,
+        branchId,
       });
-
-      this.addPage({ embeds: [embed] });
+      this.customComponents.push(components);
+      this.addPage({ embeds: [embed], components });
     }
 
     if (selectMenuOptions.length > 0) {
@@ -77,6 +88,31 @@ export class ItemPaginatedMessage extends PaginatedMessage {
         };
       });
     }
+  }
+
+  async resolvePage(response, targetUser, index) {
+    const resolved = await super.resolvePage(response, targetUser, index);
+
+    const pageComponents = this.customComponents[index];
+    if (pageComponents?.length > 0) {
+      const existingCustomIds =
+        resolved.components
+          ?.flatMap((row) => row.components ?? [])
+          ?.map((c) => c.custom_id) ?? [];
+
+      const newComponents = pageComponents.filter((row) =>
+        row.components.every((c) => !existingCustomIds.includes(c.custom_id)),
+      );
+
+      if (newComponents.length > 0) {
+        resolved.components = [
+          ...(resolved.components ?? []),
+          ...newComponents,
+        ];
+      }
+    }
+
+    return resolved;
   }
 
   formatHoldStatusShort(item) {

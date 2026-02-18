@@ -1,8 +1,27 @@
 import { load as cheerioLoad } from "cheerio";
 import logger from "../utils/logger.js";
 
+const HEADERS_HTML = {
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+};
+
+const HEADERS_JSON = {
+  "Content-Type": "application/json",
+  Accept: "application/json",
+};
 const scriptValue = `script[type="application/json"][data-iso-key="_0"]`;
 const searchUrl = "https://wccls.bibliocommons.com/v2/search";
+
+function extractScriptData(html) {
+  const $ = cheerioLoad(html);
+  const script = $(scriptValue).text();
+  if (!script) throw new Error("Could not find data script tag in response");
+  try {
+    return JSON.parse(script);
+  } catch (error) {
+    throw new Error(`Failed to parse script data: ${error.message}`);
+  }
+}
 
 export async function fetchLibraryData(type) {
   const AVAILABLE_NOW_CONFIG = {
@@ -19,20 +38,12 @@ export async function fetchLibraryData(type) {
   const config =
     type === "available now" ? AVAILABLE_NOW_CONFIG : ON_ORDER_CONFIG;
 
-  const response = await fetch(`${searchUrl}?${config.queryString}`);
-  const data = await response.text();
-  const $ = cheerioLoad(data);
-  const script = $(scriptValue).text();
+  const url = `${searchUrl}?${config.queryString}`;
 
-  let libraryData;
-  try {
-    libraryData = JSON.parse(script);
-  } catch (error) {
-    logger.error(`Failed to parse script data: ${error.message}`);
-    return [];
-  }
-
-  return libraryData;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  const html = await response.text();
+  return extractScriptData(html);
 }
 
 export function transformToTitles(libraryData, type) {
@@ -56,19 +67,18 @@ export function transformToTitles(libraryData, type) {
     });
   }
 
-  logger.debug(`${titles.length} ${type} titles transformed.`);
   return titles;
 }
 
-export function getConfigForType(type) {
-  return type === "available now" ? AVAILABLE_NOW_CONFIG : ON_ORDER_CONFIG;
-}
-
-export async function searchMediaAvailability(query, mediaType = "") {
+export async function searchMediaAvailability(
+  query,
+  mediaType = "",
+  auth = null,
+) {
   logger.info(`Searching for "${query}" with media type "${mediaType}"`);
 
   const encodedQuery = encodeURIComponent(query);
-  let formatQuery = "f_FORMAT=DVD%7CBLURAY%7CDVD_PBLURAY"; // Default to video formats
+  let formatQuery = "f_FORMAT=DVD%7CBLURAY%7CDVD_PBLURAY";
 
   if (mediaType) {
     const encodedMediaType = encodeURIComponent(mediaType.toUpperCase());
@@ -77,27 +87,16 @@ export async function searchMediaAvailability(query, mediaType = "") {
 
   const queryString = `query=${encodedQuery}&searchType=keyword&${formatQuery}`;
 
-  const response = await fetch(`${searchUrl}?${queryString}`);
-  const data = await response.text();
-  const $ = cheerioLoad(data);
-  const script = $(scriptValue).text();
-
-  let libraryData;
-  try {
-    libraryData = JSON.parse(script);
-  } catch (error) {
-    logger.error(
-      `Failed to parse script data for search query "${query}": ${error.message}`,
-    );
-    return [];
-  }
-
-  return libraryData;
+  const url = `${searchUrl}?${queryString}`;
+  const headers = auth?.sessionCookies
+    ? { ...HEADERS_HTML, Cookie: auth.sessionCookies }
+    : { ...HEADERS_HTML };
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  const html = await response.text();
+  return extractScriptData(html);
 }
 
-/**
- * Login to library website and return session cookies
- */
 export async function loginToLibrary(cardNumber, pin) {
   const url = "https://wccls.bibliocommons.com/user/login";
   try {
@@ -157,45 +156,22 @@ export async function loginToLibrary(cardNumber, pin) {
   }
 }
 
-/**
- * Fetch user's holds from library website
- */
-/**
- * Fetch user's holds from library website
- */
 export async function fetchHolds(sessionCookies) {
   const url = "https://wccls.bibliocommons.com/v2/holds";
   try {
     const response = await fetch(url, {
-      method: "GET",
       headers: {
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ...HEADERS_HTML,
         Cookie: sessionCookies,
       },
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch holds: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const html = await response.text();
-
-    // Extract the JSON data from the script tag
-    const jsonMatch = html.match(
-      /<script type="application\/json" data-iso-key="_0">([\s\S]*?)<\/script>/,
-    );
-
-    if (!jsonMatch) {
-      logger.error("Could not find holds data in HTML");
-      return [];
-    }
-
-    const data = JSON.parse(jsonMatch[1]);
+    const jsonData = extractScriptData(html);
 
     // Extract holds and bibs from the data
-    const holds = data.entities?.holds || {};
-    const bibs = data.entities?.bibs || {};
+    const holds = jsonData.entities?.holds || {};
+    const bibs = jsonData.entities?.bibs || {};
 
     // Transform holds into our format
     const transformedHolds = Object.values(holds).map((hold) => {
@@ -210,9 +186,9 @@ export async function fetchHolds(sessionCookies) {
         publicationYear: briefInfo.publicationDate || "",
         description: briefInfo.description || "",
         image:
-          briefInfo.jacket?.large ||
-          briefInfo.jacket?.medium ||
           briefInfo.jacket?.small ||
+          briefInfo.jacket?.medium ||
+          briefInfo.jacket?.large ||
           null,
         url: `https://wccls.bibliocommons.com/v2/record/${hold.metadataId}`,
         type: "hold",
@@ -224,10 +200,112 @@ export async function fetchHolds(sessionCookies) {
       };
     });
 
-    logger.info(`Retrieved ${transformedHolds.length} holds from library`);
+    logger.info(
+      `The Dude retrieved ${transformedHolds.length} holds from library`,
+    );
     return transformedHolds;
   } catch (error) {
     logger.error({ err: error }, "Failed to fetch holds");
+    throw error;
+  }
+}
+
+export async function placeHold(
+  sessionCookies,
+  metadataId,
+  accountId,
+  branchId,
+) {
+  const url = `https://gateway.bibliocommons.com/v2/libraries/wccls/holds?locale=en-US`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...HEADERS_JSON,
+        Cookie: sessionCookies,
+      },
+      body: JSON.stringify({
+        metadataId,
+        accountId: Number(accountId),
+        enableSingleClickHolds: false,
+        materialType: "PHYSICAL",
+        materialParams: {
+          branchId,
+          expiryDate: null,
+          errorMessageLocale: "en-US",
+        },
+      }),
+    });
+
+    const data = await response.json();
+    logger.debug(`placeHold response status: ${response.status}`);
+    logger.debug(`placeHold response body: ${JSON.stringify(data)}`);
+
+    if (!response.ok) {
+      const errorMessage = data.error?.message || "Unknown error placing hold";
+      logger.error(`Failed to place hold: ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
+    const holdEntries = Object.values(data.entities?.holds || {});
+    if (holdEntries.length === 0) {
+      throw new Error("Hold placed but no hold information returned.");
+    }
+
+    const hold = holdEntries[0];
+    logger.info(
+      `Successfully placed hold ${hold.holdsId} for item ${metadataId}`,
+    );
+
+    return {
+      success: true,
+      holdId: hold.holdsId,
+      position: hold.holdsPosition,
+      title: hold.bibTitle,
+      pickupLocation: hold.pickupLocation?.name,
+    };
+  } catch (error) {
+    logger.error({ err: error }, `Error placing hold for item ${metadataId}`);
+    throw error;
+  }
+}
+
+export async function cancelHold(
+  sessionCookies,
+  metadataId,
+  holdId,
+  accountId,
+) {
+  const url = `https://gateway.bibliocommons.com/v2/libraries/wccls/holds?locale=en-US`;
+
+  try {
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        ...HEADERS_JSON,
+        Cookie: sessionCookies,
+      },
+      body: JSON.stringify({
+        accountId: accountId,
+        holdIds: [holdId],
+        metadataIds: [metadataId],
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage =
+        data.error?.message || "Unknown error cancelling hold";
+      logger.error(`Failed to cancel hold: ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
+    logger.info(`Successfully cancelled hold ${holdId} for item ${metadataId}`);
+    return { success: true };
+  } catch (error) {
+    logger.error({ err: error }, `Error cancelling hold ${holdId}`);
     throw error;
   }
 }
@@ -238,32 +316,14 @@ export async function fetchCheckedOut(sessionCookies) {
   try {
     const response = await fetch(url, {
       headers: {
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ...HEADERS_HTML,
         Cookie: sessionCookies,
       },
     });
-
-    if (!response.ok) {
-      logger.error(
-        `[LibraryAPI] Failed to fetch checked out items: ${response.status}`,
-      );
-      return null;
-    }
-
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const html = await response.text();
+    const jsonData = extractScriptData(html);
 
-    // Extract JSON data from script tag
-    const scriptMatch = html.match(
-      /<script type="application\/json" data-iso-key="_0">([\s\S]*?)<\/script>/,
-    );
-
-    if (!scriptMatch) {
-      logger.error("[LibraryAPI] Could not find checkout data in response");
-      return null;
-    }
-
-    const jsonData = JSON.parse(scriptMatch[1]);
     const checkouts = jsonData.entities?.checkouts || {};
     const bibs = jsonData.entities?.bibs || {};
 
@@ -278,7 +338,7 @@ export async function fetchCheckedOut(sessionCookies) {
 
       // Get jacket image
       const jacket = briefInfo.jacket || {};
-      const image = jacket.large || jacket.medium || jacket.small || null;
+      const image = jacket.small || jacket.medium || jacket.large || null;
 
       return {
         id: checkout.checkoutId,
@@ -302,12 +362,15 @@ export async function fetchCheckedOut(sessionCookies) {
       };
     });
 
-    logger.debug(
-      `[LibraryAPI] Found ${checkedOutItems.length} checked out items`,
+    logger.info(
+      `The Dude retrieved ${checkedOutItems.length} checked out items.`,
     );
     return checkedOutItems;
   } catch (error) {
-    logger.error("[LibraryAPI] Error fetching checked out items:", error);
-    return null;
+    logger.error(
+      { err: error },
+      "[LibraryAPI] Error fetching checked out items:",
+    );
+    throw error;
   }
 }
