@@ -11,6 +11,7 @@ export class ViewHoldsCommand extends Command {
       ...options,
       name: "view-holds",
       description: "View your library holds (requires linked account)",
+      aliases: ["vh", "holds"],
     });
   }
 

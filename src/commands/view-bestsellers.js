@@ -1,16 +1,16 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
-import { getOnOrder } from "../lib/database.js";
+import { getBestSellers } from "../lib/database.js";
 import { ItemPaginatedMessage } from "../lib/ItemPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
-export class OnOrderCommand extends Command {
+export class ViewBestSellersCommand extends Command {
   constructor(context, options) {
     super(context, {
       ...options,
-      name: "onorder",
-      description: "Get on order library items",
-      aliases: ["onorder"],
+      name: "view-bestsellers",
+      description: "Get best seller (available now) library items",
+      aliases: ["vb", "bs", "best", "new", "bestsellers"],
     });
   }
 
@@ -28,24 +28,24 @@ export class OnOrderCommand extends Command {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const items = await getOnOrder();
+      const items = await getBestSellers();
 
       if (!items || items.length === 0) {
         return interaction.editReply(
-          `Hey man, there just aren't any new items On Order.`,
+          `Hey man, there just aren't any available now.`,
         );
       }
 
       const paginatedMessage = new ItemPaginatedMessage(items, {
-        titlePrefix: "🚚 ",
-        color: "#FFD700",
-        showAvailability: false,
+        titlePrefix: "📀 ",
+        color: "#0099FF",
+        showAvailability: true,
         showLocation: false,
       });
 
       return paginatedMessage.run(interaction, interaction.user);
     } catch (error) {
-      logger.error({ err: error }, "Dude! [OnOrder Command] Error");
+      logger.error({ err: error }, "Dude! [BestSellers Command] Error");
 
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
