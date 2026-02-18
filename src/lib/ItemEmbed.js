@@ -20,6 +20,8 @@ export class ItemEmbed {
       holdId = null,
       accountId = null,
       branchId = null,
+      showRenewButton = false,
+      checkoutId = null,
     } = options;
 
     const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? `: ${item.subtitle}` : ""} ${item.edition || ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
@@ -95,8 +97,17 @@ export class ItemEmbed {
             .setLabel("Place Hold")
             .setStyle(ButtonStyle.Primary)
             .setEmoji("📚");
-
       components.push(new ActionRowBuilder().addComponents(button));
+    }
+
+    if (showRenewButton && checkoutId && metadataId) {
+      const renewButton = new ButtonBuilder()
+        .setCustomId(`renew_checkout:${checkoutId}:${accountId}`)
+        .setLabel("Renew")
+        .setStyle(ButtonStyle.Success)
+        .setEmoji("🔄");
+
+      components.push(new ActionRowBuilder().addComponents(renewButton));
     }
 
     return { embed, components };

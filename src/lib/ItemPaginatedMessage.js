@@ -17,6 +17,7 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       showCheckoutStatus = false,
       accountId = null,
       branchId = null,
+      showRenewButton = false,
     } = options;
 
     const selectMenuOptions = [];
@@ -71,6 +72,8 @@ export class ItemPaginatedMessage extends PaginatedMessage {
         holdId: item.holdInfo?.id ?? null,
         accountId,
         branchId,
+        showRenewButton: showRenewButton && !!item.canRenew,
+        checkoutId: item.checkoutId,
       });
       this.customComponents.push(components);
       this.addPage({ embeds: [embed], components });

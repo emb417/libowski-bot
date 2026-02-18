@@ -51,7 +51,8 @@ export class ViewCheckedOutCommand extends Command {
         });
       }
 
-      const checkedOutItems = await fetchCheckedOut(sessionCookies);
+      const { items: checkedOutItems, accoutId } =
+        await fetchCheckedOut(sessionCookies);
 
       if (!checkedOutItems || checkedOutItems.length === 0) {
         return interaction.editReply({
@@ -75,6 +76,8 @@ export class ViewCheckedOutCommand extends Command {
         showLocation: false,
         showHoldStatus: false,
         showCheckoutStatus: true,
+        showRenewButton: true,
+        accountId: accoutId,
       });
 
       return paginatedMessage.run(interaction, interaction.user);
