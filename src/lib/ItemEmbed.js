@@ -23,10 +23,15 @@ export class ItemEmbed {
     } = options;
 
     const fullTitle = `${titlePrefix} ${item.title}${item.subtitle ? `: ${item.subtitle}` : ""} ${item.edition || ""} (${item.format || "Unknown Format"} ${item.publicationYear || "Unknown Year"})`;
+    const description = item.description || "No Description.";
+    const truncated =
+      description.length > 1000
+        ? description.substring(0, 997) + "..."
+        : description;
 
     const embed = new EmbedBuilder()
       .setTitle(fullTitle)
-      .setDescription(item.description || "No description available.")
+      .setDescription(truncated)
       .setColor(color);
 
     if (item.url) {
@@ -105,7 +110,11 @@ export class ItemEmbed {
       hold.status === "READY_FOR_PICKUP" ||
       hold.holdStatus === "READY_FOR_PICKUP"
     ) {
-      statusText = `📍 Ready for pickup at ${hold.pickupLocation}`;
+      if (hold.pickupLocation) {
+        statusText = `📍 Ready for pickup at ${hold.pickupLocation}`;
+      } else {
+        statusText = `📱 Ready to checkout in Libby.`;
+      }
       if (hold.pickupByDate) {
         statusText += `\nPick up by: ${hold.pickupByDate}`;
       }
@@ -158,7 +167,7 @@ export class ItemEmbed {
         return `📍 ${loc.location} (${timeAgo})`;
       });
 
-    return locations.length > 0 ? locations.join("\n") : "Not available."; // Changed from "Location information not available"
+    return locations.length > 0 ? locations.join("\n") : "Not available.";
   }
 
   static formatCheckoutStatus(item) {
