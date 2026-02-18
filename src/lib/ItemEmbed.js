@@ -78,7 +78,7 @@ export class ItemEmbed {
 
     const components = [];
 
-    if (showHoldButton && metadataId && accountId) {
+    if (showHoldButton && metadataId && accountId && (branchId || holdId)) {
       const button = hasExistingHold
         ? new ButtonBuilder()
             .setCustomId(`cancel_hold:${metadataId}:${holdId}:${accountId}`)
