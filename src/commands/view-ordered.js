@@ -10,7 +10,6 @@ export class ViewOrderedCommand extends Command {
       ...options,
       name: "view-ordered",
       description: "Get on order library items",
-      aliases: ["vo", "ordered"],
     });
   }
 

@@ -10,7 +10,6 @@ export class ViewWishlistCommand extends Command {
       ...options,
       name: "view-wishlist",
       description: "View your wishlist",
-      aliases: ["vw", "wishlist"],
     });
   }
 

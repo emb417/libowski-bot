@@ -9,7 +9,6 @@ export class RemoveFromWishlistCommand extends Command {
       ...options,
       name: "remove-from-wishlist",
       description: "Remove a title from your wishlist",
-      aliases: ["rfw"],
     });
   }
 

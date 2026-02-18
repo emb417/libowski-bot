@@ -10,7 +10,6 @@ export class ViewBestSellersCommand extends Command {
       ...options,
       name: "view-bestsellers",
       description: "Get best seller (available now) library items",
-      aliases: ["vb", "bs", "best", "new", "bestsellers"],
     });
   }
 

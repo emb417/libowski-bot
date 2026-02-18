@@ -11,7 +11,6 @@ export class ViewCheckedOutCommand extends Command {
       ...options,
       name: "view-checked-out",
       description: "View your currently checked out library items",
-      aliases: ["vc", "checked-out"],
     });
   }
 

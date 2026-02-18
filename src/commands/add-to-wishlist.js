@@ -9,7 +9,6 @@ export class AddToWishlistCommand extends Command {
       ...options,
       name: "add-to-wishlist",
       description: "Add a title to your wishlist",
-      aliases: ["atw"],
     });
   }
 
