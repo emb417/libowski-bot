@@ -9,17 +9,21 @@ export class ItemSingleMessage {
       color = "#00FF00",
       showAvailability = false,
       showLocation = true,
+      showHoldStatus = false,
+      showHoldButton = false,
     } = options;
 
     try {
       const user = await client.users.fetch(userId);
 
       for (const item of items) {
-        const embed = ItemEmbed.createEmbed(item, {
+        const { embed } = ItemEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,
           showLocation,
+          showHoldStatus,
+          showHoldButton,
         });
 
         await user.send({ embeds: [embed] });
@@ -55,11 +59,12 @@ export class ItemSingleMessage {
       const channel = await client.channels.fetch(channelId);
 
       for (const item of items) {
-        const embed = ItemEmbed.createEmbed(item, {
+        const { embed } = ItemEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,
           showLocation,
+          showHoldButton: false,
         });
 
         await channel.send({ embeds: [embed] });

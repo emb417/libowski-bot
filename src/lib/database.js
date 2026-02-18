@@ -368,3 +368,15 @@ export async function getLibraryCard(userId) {
 
   return user.libraryCard;
 }
+
+export async function getUsersWithLinkedCards() {
+  const db = await initDB();
+  return db.data.users
+    .filter((u) => u.libraryCard)
+    .map((u) => ({
+      id: u.id,
+      username: u.username,
+      cardNumber: u.libraryCard.cardNumber,
+      pin: u.libraryCard.pin,
+    }));
+}

@@ -1,5 +1,10 @@
 import cron from "node-cron";
-import { fetchLibraryData, transformToTitles } from "./LibraryApiService.js";
+import {
+  fetchLibraryData,
+  transformToTitles,
+  loginToLibrary,
+  fetchHolds,
+} from "./LibraryApiService.js";
 import {
   getAvailableBibItems,
   getLocationByName,
@@ -8,6 +13,7 @@ import {
   updateLibraryItems,
   getLibraryItemsByType,
   getUsersWithItemInWishlist,
+  getUsersWithLinkedCards,
   shouldNotifyUser,
   updateUserNotificationTimestamp,
   updateItemAvailability,
@@ -187,6 +193,58 @@ async function runOnOrderTask() {
   }
 }
 
+async function runHoldsReadyTask() {
+  logger.info("Running holds ready check cron job.");
+
+  try {
+    const usersWithCards = await getUsersWithLinkedCards();
+
+    for (const user of usersWithCards) {
+      try {
+        const sessionCookies = await loginToLibrary(user.cardNumber, user.pin);
+        const { holds } = await fetchHolds(sessionCookies);
+
+        const readyHolds = holds.filter(
+          (hold) => hold.holdStatus === "READY_FOR_PICKUP",
+        );
+
+        for (const hold of readyHolds) {
+          const shouldNotify = await shouldNotifyUser(
+            user.id,
+            hold.id,
+            "READY_FOR_PICKUP",
+          );
+          if (!shouldNotify) continue;
+
+          await updateUserNotificationTimestamp(
+            user.id,
+            hold.id,
+            "READY_FOR_PICKUP",
+          );
+
+          await ItemSingleMessage.sendToUser(user.id, user.username, [hold], {
+            titlePrefix: "📬 ",
+            color: "#2ECC71",
+            showHoldStatus: true,
+          });
+
+          logger.info(
+            `Notified ${user.username} that "${hold.title}" is ready for pickup`,
+          );
+        }
+      } catch (error) {
+        logger.warn(
+          { err: error },
+          `Failed holds check for user ${user.username}`,
+        );
+      }
+    }
+  } catch (error) {
+    logger.error("Error running holds ready task:", error);
+    throw error;
+  }
+}
+
 export function scheduleCronJobs() {
   logger.info("...and scheduling cron jobs...");
 
@@ -202,7 +260,13 @@ export function scheduleCronJobs() {
     { scheduled: true },
   );
 
+  const holdsReadyCronJob = cron.schedule(
+    process.env.HOLDS_READY_SCHEDULE || "*/15 8-18 * * *",
+    runHoldsReadyTask,
+    { scheduled: true },
+  );
+
   logger.info("Cron jobs scheduled.");
 
-  return { availabilityCronJob, onOrderCronJob };
+  return { availabilityCronJob, onOrderCronJob, holdsReadyCronJob };
 }

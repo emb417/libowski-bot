@@ -105,7 +105,7 @@ export class ItemEmbed {
       hold.status === "READY_FOR_PICKUP" ||
       hold.holdStatus === "READY_FOR_PICKUP"
     ) {
-      statusText = `✅ Ready for pickup at ${hold.pickupLocation}`;
+      statusText = `📍 Ready for pickup at ${hold.pickupLocation}`;
       if (hold.pickupByDate) {
         statusText += `\nPick up by: ${hold.pickupByDate}`;
       }
