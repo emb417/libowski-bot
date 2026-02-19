@@ -85,6 +85,7 @@ async function runAvailableNowTask() {
               userNotifications[user.id].items.push({
                 title: dbItem.title,
                 subtitle: dbItem.subtitle,
+                edition: dbItem.edition,
                 location: location.name,
                 url: dbItem.url,
                 image: dbItem.image,
@@ -130,7 +131,7 @@ async function runAvailableNowTask() {
 
     return newlyAvailable;
   } catch (error) {
-    logger.error("Error refreshing available now items:", error);
+    logger.error({ err: error }, "Error refreshing available now items:");
     throw error;
   }
 }
@@ -165,6 +166,7 @@ async function runOnOrderTask() {
         newOnOrderTitles.map((item) => ({
           title: item.title,
           subtitle: item.subtitle,
+          edition: item.edition,
           url: item.url,
           image: item.image,
           format: item.format,
