@@ -213,7 +213,7 @@ export async function addWishListItem(user, title) {
     db.data.users.push(newUser);
     existingUser = newUser;
     logger.info(
-      `The Dude created anew user ${user.username} and added "${title}" to wishlist.`,
+      `The Dude created a new user ${user.username} and added "${title}" to wishlist.`,
     );
   }
 
@@ -379,4 +379,38 @@ export async function getUsersWithLinkedCards() {
       cardNumber: u.libraryCard.cardNumber,
       pin: u.libraryCard.pin,
     }));
+}
+
+// ============================================================================
+// USER ACCOUNT - Branch Preferences
+// ============================================================================
+
+export async function getUserBranches(userId) {
+  const db = await initDB();
+  const user = db.data.users.find((u) => u.id === userId);
+  return user?.preferredBranches ?? null;
+}
+
+export async function saveUserBranches(userId, branchCodes) {
+  const db = await initDB();
+
+  const userIndex = db.data.users.findIndex((u) => u.id === userId);
+
+  if (userIndex !== -1) {
+    db.data.users[userIndex].preferredBranches = branchCodes;
+    logger.info(
+      `The Dude updated branch preferences for user ${db.data.users[userIndex].username}: ${branchCodes.join(", ")}`,
+    );
+  } else {
+    db.data.users.push({
+      id: userId,
+      wishlist: [],
+      preferredBranches: branchCodes,
+    });
+    logger.info(
+      `The Dude created new user ${userId} with branch preferences: ${branchCodes.join(", ")}`,
+    );
+  }
+
+  await db.write();
 }

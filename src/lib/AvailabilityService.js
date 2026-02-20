@@ -1,10 +1,23 @@
 import logger from "../utils/logger.js";
+import { getUserBranches } from "./database.js";
 
-const LOCATIONS = [
-  { code: 9, name: "Beaverton City Library" },
-  { code: 29, name: "Tigard Public Library" },
-  { code: 31, name: "Tualatin Public Library" },
-  { code: 39, name: "Beaverton Murray Scholls" },
+export const ALL_LOCATIONS = [
+  { code: "42", name: "Aloha Community Library" },
+  { code: "7", name: "Banks Public Library" },
+  { code: "9", name: "Beaverton City Library" },
+  { code: "39", name: "Beaverton Murray Scholls" },
+  { code: "34", name: "Bethany Library" },
+  { code: "11", name: "Cedar Mill Library" },
+  { code: "13", name: "Cornelius Public Library" },
+  { code: "15", name: "Forest Grove City Library" },
+  { code: "17", name: "Garden Home Community Library" },
+  { code: "20", name: "Hillsboro Brookwood Library" },
+  { code: "19", name: "Hillsboro Shute Park Library" },
+  { code: "36", name: "North Plains Public Library" },
+  { code: "25", name: "Sherwood Public Library" },
+  { code: "29", name: "Tigard Public Library" },
+  { code: "31", name: "Tualatin Public Library" },
+  { code: "33", name: "West Slope Community Library" },
 ];
 
 const AVAILABILITY_URL = (itemId) =>
@@ -52,9 +65,27 @@ export async function getAvailableBibItems(items) {
 }
 
 export function getLocationByName(locationName) {
-  return LOCATIONS.find((location) => location.name === locationName);
+  return ALL_LOCATIONS.find((location) => location.name === locationName);
+}
+
+export function getLocationByCode(locationCode) {
+  return ALL_LOCATIONS.find(
+    (location) => location.code === String(locationCode),
+  );
 }
 
 export function getAllLocations() {
-  return LOCATIONS;
+  return ALL_LOCATIONS;
+}
+
+/**
+ * Get a user's preferred branch locations from the DB.
+ * Falls back to ALL_LOCATIONS if the user has no preferences set.
+ */
+export async function getUserLocations(userId) {
+  const branches = await getUserBranches(userId);
+  if (!branches || branches.length === 0) return ALL_LOCATIONS;
+  return branches
+    .map((code) => ALL_LOCATIONS.find((loc) => loc.code === String(code)))
+    .filter(Boolean);
 }

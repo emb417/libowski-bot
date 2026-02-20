@@ -8,6 +8,7 @@ import {
 import {
   getAvailableBibItems,
   getLocationByName,
+  getUserLocations,
 } from "./AvailabilityService.js";
 import {
   updateLibraryItems,
@@ -57,6 +58,13 @@ async function runAvailableNowTask() {
 
         if (matchingUsers.length > 0) {
           for (const user of matchingUsers) {
+            // Check if this location is in the user's preferred branches
+            const userLocations = await getUserLocations(user.id);
+            const isPreferredLocation = userLocations.some(
+              (loc) => loc.code === String(location.code),
+            );
+            if (!isPreferredLocation) continue;
+
             const shouldNotify = await shouldNotifyUser(
               user.id,
               dbItem.id,
@@ -148,6 +156,9 @@ async function runAvailableNowTask() {
           (hold) => hold.holdStatus !== "READY_FOR_PICKUP",
         );
 
+        // Get user's preferred locations once for this user
+        const userLocations = await getUserLocations(user.id);
+
         for (const hold of activeHolds) {
           const availableMatch = availableItems.find(
             (item) => item.id === hold.id,
@@ -159,9 +170,16 @@ async function runAvailableNowTask() {
           );
           if (availabilityEntries.length === 0) continue;
 
-          // Check if we should notify for any location
+          // Filter to only the user's preferred locations
+          const preferredEntries = availabilityEntries.filter(
+            ([locationCode]) =>
+              userLocations.some((loc) => loc.code === String(locationCode)),
+          );
+          if (preferredEntries.length === 0) continue;
+
+          // Check if we should notify for any preferred location
           let shouldNotifyAny = false;
-          for (const [locationCode] of availabilityEntries) {
+          for (const [locationCode] of preferredEntries) {
             const shouldNotify = await shouldNotifyUser(
               user.id,
               hold.id,
@@ -179,8 +197,8 @@ async function runAvailableNowTask() {
 
           if (!shouldNotifyAny) continue;
 
-          // Combine all locations into one string
-          const locationNames = availabilityEntries
+          // Combine preferred locations into one string
+          const locationNames = preferredEntries
             .map(([, locationData]) => locationData.location)
             .join(", ");
 
