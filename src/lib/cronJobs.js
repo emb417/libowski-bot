@@ -23,7 +23,7 @@ import { ItemSingleMessage } from "./ItemSingleMessage.js";
 import logger from "../utils/logger.js";
 
 async function runAvailableNowTask() {
-  logger.info("Running availability refresh cron job.");
+  logger.info("Running availability and holds check cron job.");
 
   try {
     // 1. Fetch and transform library data
@@ -78,11 +78,12 @@ async function runAvailableNowTask() {
                 userNotifications[user.id] = {
                   userId: user.id,
                   username: user.username,
-                  items: [],
+                  wishlistItems: [],
+                  holdAvailableItems: [],
                 };
               }
 
-              userNotifications[user.id].items.push({
+              userNotifications[user.id].wishlistItems.push({
                 title: dbItem.title,
                 subtitle: dbItem.subtitle,
                 edition: dbItem.edition,
@@ -102,31 +103,155 @@ async function runAvailableNowTask() {
       }
 
       logger.debug(`${newlyAvailable.length} newly available items found.`);
-      logger.debug(`${Object.keys(userNotifications).length} users to notify.`);
     }
 
-    // 5. Send notifications
-    if (Object.keys(userNotifications).length > 0) {
-      for (const [userId, notificationData] of Object.entries(
-        userNotifications,
-      )) {
+    // 5. Check holds for each user with a linked card
+    const usersWithCards = await getUsersWithLinkedCards();
+
+    for (const user of usersWithCards) {
+      try {
+        const sessionCookies = await loginToLibrary(user.cardNumber, user.pin);
+        const { holds } = await fetchHolds(sessionCookies);
+
+        // 5a. Check holds ready for pickup
+        const readyHolds = holds.filter(
+          (hold) => hold.holdStatus === "READY_FOR_PICKUP",
+        );
+
+        for (const hold of readyHolds) {
+          const shouldNotify = await shouldNotifyUser(
+            user.id,
+            hold.id,
+            "READY_FOR_PICKUP",
+          );
+          if (!shouldNotify) continue;
+
+          await updateUserNotificationTimestamp(
+            user.id,
+            hold.id,
+            "READY_FOR_PICKUP",
+          );
+
+          await ItemSingleMessage.sendToUser(user.id, user.username, [hold], {
+            titlePrefix: "📬 ",
+            color: "#2ECC71",
+            showHoldStatus: true,
+          });
+
+          logger.info(
+            `The Dude notified ${user.username} that "${hold.title}" is ready for pickup`,
+          );
+        }
+
+        // 5b. Cross-reference active holds against available now items in DB
+        const activeHolds = holds.filter(
+          (hold) => hold.holdStatus !== "READY_FOR_PICKUP",
+        );
+
+        for (const hold of activeHolds) {
+          const availableMatch = availableItems.find(
+            (item) => item.id === hold.id,
+          );
+          if (!availableMatch) continue;
+
+          const availabilityEntries = Object.entries(
+            availableMatch.availability ?? {},
+          );
+          if (availabilityEntries.length === 0) continue;
+
+          // Check if we should notify for any location
+          let shouldNotifyAny = false;
+          for (const [locationCode] of availabilityEntries) {
+            const shouldNotify = await shouldNotifyUser(
+              user.id,
+              hold.id,
+              locationCode,
+            );
+            if (shouldNotify) {
+              shouldNotifyAny = true;
+              await updateUserNotificationTimestamp(
+                user.id,
+                hold.id,
+                locationCode,
+              );
+            }
+          }
+
+          if (!shouldNotifyAny) continue;
+
+          // Combine all locations into one string
+          const locationNames = availabilityEntries
+            .map(([, locationData]) => locationData.location)
+            .join(", ");
+
+          // Initialize if not already set from wishlist matches
+          if (!userNotifications[user.id]) {
+            userNotifications[user.id] = {
+              userId: user.id,
+              username: user.username,
+              wishlistItems: [],
+              holdAvailableItems: [],
+            };
+          }
+
+          userNotifications[user.id].holdAvailableItems.push({
+            ...availableMatch,
+            location: locationNames,
+          });
+        }
+      } catch (error) {
+        logger.warn(
+          { err: error },
+          `Failed holds check for user ${user.username}`,
+        );
+      }
+    }
+
+    // 6. Send notifications
+    logger.debug(`${Object.keys(userNotifications).length} users to notify.`);
+
+    for (const [userId, notificationData] of Object.entries(
+      userNotifications,
+    )) {
+      if (notificationData.wishlistItems.length > 0) {
         await ItemSingleMessage.sendToUser(
           userId,
           notificationData.username,
-          notificationData.items,
+          notificationData.wishlistItems,
           {
-            titlePrefix: "📀 ",
+            titlePrefix: "🔔 ",
             color: "#00FF00",
             showLocation: true,
           },
         );
 
         logger.info(
-          `The Dude notified ${notificationData.username} for ${notificationData.items.length} items`,
+          `The Dude notified ${notificationData.username} for ${notificationData.wishlistItems.length} wishlist items`,
         );
       }
-    } else {
-      logger.info("No new titles available now matching user wishlists.");
+
+      if (notificationData.holdAvailableItems.length > 0) {
+        await ItemSingleMessage.sendToUser(
+          userId,
+          notificationData.username,
+          notificationData.holdAvailableItems,
+          {
+            titlePrefix: "🔔 ",
+            color: "#00FF00",
+            showLocation: true,
+          },
+        );
+
+        logger.info(
+          `The Dude notified ${notificationData.username} for ${notificationData.holdAvailableItems.length} held items now available`,
+        );
+      }
+    }
+
+    if (Object.keys(userNotifications).length === 0) {
+      logger.info(
+        "No new titles available now matching user wishlists or holds.",
+      );
     }
 
     return newlyAvailable;
@@ -195,58 +320,6 @@ async function runOnOrderTask() {
   }
 }
 
-async function runHoldsReadyTask() {
-  logger.info("Running holds ready check cron job.");
-
-  try {
-    const usersWithCards = await getUsersWithLinkedCards();
-
-    for (const user of usersWithCards) {
-      try {
-        const sessionCookies = await loginToLibrary(user.cardNumber, user.pin);
-        const { holds } = await fetchHolds(sessionCookies);
-
-        const readyHolds = holds.filter(
-          (hold) => hold.holdStatus === "READY_FOR_PICKUP",
-        );
-
-        for (const hold of readyHolds) {
-          const shouldNotify = await shouldNotifyUser(
-            user.id,
-            hold.id,
-            "READY_FOR_PICKUP",
-          );
-          if (!shouldNotify) continue;
-
-          await updateUserNotificationTimestamp(
-            user.id,
-            hold.id,
-            "READY_FOR_PICKUP",
-          );
-
-          await ItemSingleMessage.sendToUser(user.id, user.username, [hold], {
-            titlePrefix: "📬 ",
-            color: "#2ECC71",
-            showHoldStatus: true,
-          });
-
-          logger.info(
-            `The Dude notified ${user.username} that "${hold.title}" is ready for pickup`,
-          );
-        }
-      } catch (error) {
-        logger.warn(
-          { err: error },
-          `Failed holds check for user ${user.username}`,
-        );
-      }
-    }
-  } catch (error) {
-    logger.error("Error running holds ready task:", error);
-    throw error;
-  }
-}
-
 export function scheduleCronJobs() {
   logger.info("...and scheduling cron jobs...");
 
@@ -257,18 +330,12 @@ export function scheduleCronJobs() {
   );
 
   const onOrderCronJob = cron.schedule(
-    process.env.ON_ORDER_SCHEDULE || "0 */6 * * *",
+    process.env.ON_ORDER_SCHEDULE || "10 8-18 * * *",
     runOnOrderTask,
-    { scheduled: true },
-  );
-
-  const holdsReadyCronJob = cron.schedule(
-    process.env.HOLDS_READY_SCHEDULE || "*/15 8-18 * * *",
-    runHoldsReadyTask,
     { scheduled: true },
   );
 
   logger.info("Cron jobs scheduled.");
 
-  return { availabilityCronJob, onOrderCronJob, holdsReadyCronJob };
+  return { availabilityCronJob, onOrderCronJob };
 }
