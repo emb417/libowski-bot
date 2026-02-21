@@ -27,6 +27,7 @@ export async function getAvailableBibItems(items) {
   logger.info(`${items.length} items >> getting detailed availability data...`);
 
   const availableBibItems = [];
+  const copyCountsMap = new Map();
   let counter = 1;
 
   for (const item of items) {
@@ -38,6 +39,9 @@ export async function getAvailableBibItems(items) {
       const availability = availabilitiesData[item.id];
       const heldCopies = availability?.heldCopies ?? 0;
       const totalCopies = availability?.totalCopies ?? 0;
+
+      // Always store counts regardless of availability
+      copyCountsMap.set(item.id, { heldCopies, totalCopies });
 
       const availableForItem = Object.values(bibItemsData)
         .filter((bibItem) => bibItem.availability.status === "AVAILABLE")
@@ -61,7 +65,7 @@ export async function getAvailableBibItems(items) {
     }
   }
 
-  return availableBibItems;
+  return { availableBibItems, copyCountsMap };
 }
 
 export function getLocationByName(locationName) {

@@ -111,15 +111,20 @@ export class FindItemCommand extends Command {
         }
       }
 
-      const availableBibItems = await getAvailableBibItems(titles);
+      const { availableBibItems, copyCountsMap } =
+        await getAvailableBibItems(titles);
 
       const itemsWithAvailability = titles.map((title) => {
         const availabilityForTitle = availableBibItems.filter(
           (bib) => bib.id === title.id,
         );
 
-        const heldCopies = availabilityForTitle[0]?.heldCopies ?? 0;
-        const totalCopies = availabilityForTitle[0]?.totalCopies ?? 0;
+        const counts = copyCountsMap.get(title.id) ?? {
+          heldCopies: 0,
+          totalCopies: 0,
+        };
+        const heldCopies = counts.heldCopies;
+        const totalCopies = counts.totalCopies;
 
         const locations = getAllLocations();
 

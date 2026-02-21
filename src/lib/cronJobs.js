@@ -36,7 +36,7 @@ async function runAvailableNowTask() {
 
     // 3. Get all available now items and check detailed availability
     const availableItems = await getLibraryItemsByType("available now");
-    const availableBibItems = await getAvailableBibItems(availableItems);
+    const { availableBibItems } = await getAvailableBibItems(availableItems);
 
     // 4. Process availability and match against wishlists
     const userNotifications = {};
