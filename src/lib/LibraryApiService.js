@@ -163,7 +163,9 @@ export async function loginToLibrary(cardNumber, pin) {
       .map((cookie) => cookie.split(";")[0])
       .join("; ");
 
-    logger.info("Successfully logged in to library");
+    logger.info(
+      `Successfully used card ${cardNumber} to log in to the library.`,
+    );
     return sessionCookies;
   } catch (error) {
     logger.error({ err: error }, "Failed to login to library");
@@ -225,7 +227,7 @@ export async function fetchHolds(sessionCookies) {
     });
 
     logger.info(
-      `The Dude retrieved ${transformedHolds.length} holds from library`,
+      `The Dude retrieved ${transformedHolds.length} holds from library for ${jsonData.entities?.users?.name}.`,
     );
 
     return { holds: transformedHolds, accountId };
