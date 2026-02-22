@@ -190,6 +190,8 @@ export async function fetchHolds(sessionCookies) {
     const holds = jsonData.entities?.holds || {};
     const bibs = jsonData.entities?.bibs || {};
     const accountId = Object.keys(jsonData.entities?.accounts ?? {})[0];
+    const user = Object.values(jsonData.entities?.users ?? {})[0];
+    const userName = user?.name;
 
     // Transform holds into our format
     const transformedHolds = Object.values(holds).map((hold) => {
@@ -227,7 +229,7 @@ export async function fetchHolds(sessionCookies) {
     });
 
     logger.info(
-      `The Dude retrieved ${transformedHolds.length} holds from library for ${jsonData.entities?.users?.name}.`,
+      `The Dude retrieved ${transformedHolds.length} holds from library for ${userName}.`,
     );
 
     return { holds: transformedHolds, accountId };
