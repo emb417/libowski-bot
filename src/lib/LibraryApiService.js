@@ -204,6 +204,7 @@ export async function fetchHolds(sessionCookies) {
         holdId: hold.holdsId,
         title: briefInfo.title || "Unknown Title",
         subtitle: briefInfo.subtitle || "",
+        edition: briefInfo.edition || "",
         format: briefInfo.format || "UNKNOWN",
         publicationYear: briefInfo.publicationDate || "",
         description: briefInfo.description || "",
