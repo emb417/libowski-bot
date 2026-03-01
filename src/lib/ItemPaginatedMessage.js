@@ -1,12 +1,21 @@
 import { PaginatedMessage } from "@sapphire/discord.js-utilities";
+import { ButtonStyle } from "discord.js";
 import { ItemEmbed } from "./ItemEmbed.js";
-
-import logger from "../utils/logger.js";
 
 export class ItemPaginatedMessage extends PaginatedMessage {
   constructor(items, options = {}) {
     super();
     this.customComponents = [];
+
+    // Override button styles to use Secondary (gray) instead of Primary (blurple)
+    this.setActions(
+      PaginatedMessage.defaultActions.map((action) => ({
+        ...action,
+        style: action.customId.includes("stop")
+          ? ButtonStyle.Danger // Keep stop button red
+          : ButtonStyle.Secondary, // Make all other buttons gray
+      })),
+    );
 
     const {
       titlePrefix = "📀 ",
@@ -19,6 +28,8 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       branchId = null,
       showRenewButton = false,
     } = options;
+
+    // ... rest of your code stays the same
 
     const selectMenuOptions = [];
 
