@@ -1,5 +1,5 @@
 import { Command } from "@sapphire/framework";
-import { MessageFlags, EmbedBuilder } from "discord.js";
+import { MessageFlags, EmbedBuilder, ButtonStyle } from "discord.js";
 import { PaginatedMessage } from "@sapphire/discord.js-utilities";
 import { fetchHours } from "../lib/LibraryApiService.js";
 import logger from "../utils/logger.js";
@@ -47,7 +47,15 @@ export class ViewHoursCommand extends Command {
       }
 
       const todayRef = DAYS[new Date().getDay()];
-      const paginatedMessage = new PaginatedMessage();
+      const actions = PaginatedMessage.defaultActions.map((action) => ({
+        ...action,
+        style: action.customId.includes("stop")
+          ? ButtonStyle.Danger
+          : ButtonStyle.Secondary,
+      }));
+      const paginatedMessage = new PaginatedMessage({
+        actions,
+      });
       const selectMenuOptions = [];
 
       for (const branch of branches) {

@@ -12,8 +12,8 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       PaginatedMessage.defaultActions.map((action) => ({
         ...action,
         style: action.customId.includes("stop")
-          ? ButtonStyle.Danger // Keep stop button red
-          : ButtonStyle.Secondary, // Make all other buttons gray
+          ? ButtonStyle.Danger
+          : ButtonStyle.Secondary,
       })),
     );
 
