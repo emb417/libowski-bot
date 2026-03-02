@@ -23,7 +23,9 @@ export class ViewBlazersTVCommand extends Command {
 
   async chatInputRun(interaction) {
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply({
+        flags: interaction.inGuild() ? MessageFlags.Ephemeral : undefined,
+      });
 
       logger.info(
         `[/view-blazers-tv] User ${interaction.user.username} requested Blazers TV schedule.`,
