@@ -27,7 +27,9 @@ export class SuspendHoldHandler extends InteractionHandler {
   }
 
   async run(interaction, { holdId, accountId }) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply({
+      flags: interaction.inGuild() ? MessageFlags.Ephemeral : undefined,
+    });
 
     try {
       const libraryCard = await getLibraryCard(interaction.user.id);

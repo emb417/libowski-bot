@@ -34,7 +34,9 @@ export class ViewHoursCommand extends Command {
 
   async chatInputRun(interaction) {
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply({
+        flags: interaction.inGuild() ? MessageFlags.Ephemeral : undefined,
+      });
 
       const branches = (await fetchHours())
         .filter((b) => b.name)

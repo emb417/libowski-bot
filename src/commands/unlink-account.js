@@ -24,8 +24,9 @@ export class UnlinkAccountCommand extends Command {
 
   async chatInputRun(interaction) {
     try {
-      // Always reply ephemerally for privacy
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply({
+        flags: interaction.inGuild() ? MessageFlags.Ephemeral : undefined,
+      });
 
       await unlinkLibraryCard(interaction.user.id);
 

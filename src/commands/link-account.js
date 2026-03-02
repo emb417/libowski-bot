@@ -39,7 +39,9 @@ export class LinkAccountCommand extends Command {
 
   async chatInputRun(interaction) {
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply({
+        flags: interaction.inGuild() ? MessageFlags.Ephemeral : undefined,
+      });
 
       const cardNumber = interaction.options.getString("card-number", true);
       const pin = interaction.options.getString("pin", true);

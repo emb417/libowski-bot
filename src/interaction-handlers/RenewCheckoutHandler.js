@@ -22,7 +22,9 @@ export class RenewCheckoutHandler extends InteractionHandler {
   }
 
   async run(interaction, { checkoutId, accountId }) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply({
+      flags: interaction.inGuild() ? MessageFlags.Ephemeral : undefined,
+    });
     try {
       const libraryCard = await getLibraryCard(interaction.user.id);
       if (!libraryCard) {

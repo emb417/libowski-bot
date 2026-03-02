@@ -58,7 +58,9 @@ export class RemoveFromWishlistCommand extends Command {
 
   async chatInputRun(interaction) {
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply({
+        flags: interaction.inGuild() ? MessageFlags.Ephemeral : undefined,
+      });
 
       const title = interaction.options.getString("title");
       const userId = interaction.user.id;
