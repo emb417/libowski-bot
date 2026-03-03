@@ -13,7 +13,7 @@ export class UnifiedLogger extends Listener {
     // Determine the context (guild channel or DM)
     const context = interaction.inGuild()
       ? `#${interaction.channel.name}`
-      : `DM with ${interaction.user.username}`;
+      : `DM with Libowski Bot`;
 
     if (interaction.isChatInputCommand()) {
       logger.info(
