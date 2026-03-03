@@ -10,28 +10,28 @@ export class UnifiedLogger extends Listener {
   }
 
   async run(interaction) {
-    let log = {
-      user: interaction.user?.username,
-      id: interaction.id,
-    };
+    // Determine the context (guild channel or DM)
+    const context = interaction.inGuild()
+      ? `#${interaction.channel.name}`
+      : `DM with ${interaction.user.username}`;
 
     if (interaction.isChatInputCommand()) {
       logger.info(
-        `${interaction.user.username} used /${interaction.commandName} in #${interaction.channel.name}`,
+        `${interaction.user.username} used /${interaction.commandName} in ${context}`,
       );
       return;
     }
 
     if (interaction.isMessageComponent()) {
       logger.info(
-        `${interaction.user.username} used ${interaction.customId} button in #${interaction.channel.name}`,
+        `${interaction.user.username} used ${interaction.customId} button in ${context}`,
       );
       return;
     }
 
     if (interaction.isModalSubmit()) {
       logger.info(
-        `${interaction.user.username} used ${interaction.customId} modal in #${interaction.channel.name}`,
+        `${interaction.user.username} used ${interaction.customId} modal in ${context}`,
       );
       return;
     }
