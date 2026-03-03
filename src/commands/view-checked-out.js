@@ -77,6 +77,10 @@ export class ViewCheckedOutCommand extends Command {
         showHoldStatus: false,
         showCheckoutStatus: true,
         showRenewButton: true,
+        showPlaceHoldButton: false,
+        showCancelHoldButton: false,
+        showSuspendButton: false,
+        showResumeButton: false,
         accountId,
       });
 
