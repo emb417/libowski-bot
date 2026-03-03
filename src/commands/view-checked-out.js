@@ -1,7 +1,8 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
 import { getLibraryCard } from "../lib/database.js";
-import { loginToLibrary, fetchCheckedOut } from "../lib/LibraryApiService.js";
+import { loginToLibrary } from "../lib/AuthService.js";
+import { fetchCheckedOut } from "../lib/CheckoutService.js";
 import { ItemPaginatedMessage } from "../lib/ItemPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
@@ -38,7 +39,7 @@ export class ViewCheckedOutCommand extends Command {
         });
       }
 
-      const sessionCookies = await loginToLibrary(
+      const { sessionCookies } = await loginToLibrary(
         libraryCard.cardNumber,
         libraryCard.pin,
       );

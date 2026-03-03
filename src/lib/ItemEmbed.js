@@ -96,10 +96,10 @@ export class ItemEmbed {
     const components = [];
     const rowButtons = [];
 
-    if (showPlaceHoldButton && metadataId && accountId && branchId) {
+    if (showPlaceHoldButton && metadataId) {
       rowButtons.push(
         new ButtonBuilder()
-          .setCustomId(`place_hold:${metadataId}:${accountId}:${branchId}`)
+          .setCustomId(`placeHold:${metadataId}`)
           .setLabel("Place Hold")
           .setStyle(ButtonStyle.Primary)
           .setEmoji("📚"),
@@ -109,7 +109,7 @@ export class ItemEmbed {
     if (showCancelHoldButton && metadataId && holdId && accountId) {
       rowButtons.push(
         new ButtonBuilder()
-          .setCustomId(`cancel_hold:${metadataId}:${holdId}:${accountId}`)
+          .setCustomId(`cancelHold:${metadataId}:${holdId}:${accountId}`)
           .setLabel("Cancel Hold")
           .setStyle(ButtonStyle.Danger)
           .setEmoji("🗑️"),
@@ -119,7 +119,7 @@ export class ItemEmbed {
     if (showSuspendButton && holdId && accountId) {
       rowButtons.push(
         new ButtonBuilder()
-          .setCustomId(`suspend_hold:${holdId}:${accountId}`)
+          .setCustomId(`suspendHold:${holdId}:${accountId}`)
           .setLabel("Pause Hold")
           .setStyle(ButtonStyle.Secondary)
           .setEmoji("⏸️"),
@@ -129,7 +129,7 @@ export class ItemEmbed {
     if (showResumeButton && holdId && accountId) {
       rowButtons.push(
         new ButtonBuilder()
-          .setCustomId(`resume_hold:${holdId}:${accountId}`)
+          .setCustomId(`resumeHold:${holdId}:${accountId}`)
           .setLabel("Resume Hold")
           .setStyle(ButtonStyle.Secondary)
           .setEmoji("▶️"),
@@ -139,7 +139,7 @@ export class ItemEmbed {
     if (showRenewButton && checkoutId && accountId) {
       rowButtons.push(
         new ButtonBuilder()
-          .setCustomId(`renew_checkout:${checkoutId}:${accountId}`)
+          .setCustomId(`renewCheckout:${checkoutId}:${accountId}`)
           .setLabel("Renew")
           .setStyle(ButtonStyle.Success)
           .setEmoji("🔄"),

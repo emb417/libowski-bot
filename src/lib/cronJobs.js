@@ -1,10 +1,7 @@
 import cron from "node-cron";
-import {
-  fetchLibraryData,
-  transformToTitles,
-  loginToLibrary,
-  fetchHolds,
-} from "./LibraryApiService.js";
+import { loginToLibrary } from "../lib/AuthService.js";
+import { searchNotificationItems, transformToTitles } from "./SearchService.js";
+import { fetchHolds } from "./HoldsService.js";
 import {
   getAvailableBibItems,
   getLocationByName,
@@ -28,7 +25,7 @@ async function runAvailableNowTask() {
 
   try {
     // 1. Fetch and transform library data
-    const libraryData = await fetchLibraryData("available now");
+    const libraryData = await searchNotificationItems("available now");
     const refreshedTitles = transformToTitles(libraryData, "available now");
 
     // 2. Update database with refreshed titles
@@ -36,22 +33,24 @@ async function runAvailableNowTask() {
 
     // 3. Get all available now items and check detailed availability
     const availableItems = await getLibraryItemsByType("available now");
-    const { availableBibItems } = await getAvailableBibItems(availableItems);
+    const availableBibResults = await getAvailableBibItems(availableItems);
 
     // 4. Process availability and match against wishlists
     const userNotifications = {};
     const newlyAvailable = [];
 
-    if (availableBibItems.length > 0) {
-      for (const bibItem of availableBibItems) {
-        const location = getLocationByName(bibItem.branch.name);
-        if (!location) continue;
-
-        const dbItem = availableItems.find((item) => item.id === bibItem.id);
+    if (availableBibResults.length > 0) {
+      for (const bibResult of availableBibResults) {
+        const dbItem = availableItems.find((item) => item.id === bibResult.id);
         if (!dbItem) continue;
 
-        // Update availability in database
-        await updateItemAvailability(dbItem.id, location.code, location.name);
+        for (const bibItem of bibResult.availableCopies) {
+          const location = getLocationByName(bibItem.branch.name);
+          if (!location) continue;
+
+          // Update availability in database
+          await updateItemAvailability(dbItem.id, location.code, location.name);
+        }
 
         // Find users with this item in their wishlist
         const matchingUsers = await getUsersWithItemInWishlist(dbItem);
@@ -102,6 +101,7 @@ async function runAvailableNowTask() {
                 publicationYear: dbItem.publicationYear,
                 description: dbItem.description,
                 id: dbItem.id,
+                holdInfo: null,
               });
 
               newlyAvailable.push(dbItem);
@@ -118,7 +118,10 @@ async function runAvailableNowTask() {
 
     for (const user of usersWithCards) {
       try {
-        const sessionCookies = await loginToLibrary(user.cardNumber, user.pin);
+        const { sessionCookies } = await loginToLibrary(
+          user.cardNumber,
+          user.pin,
+        );
         const { holds } = await fetchHolds(sessionCookies);
 
         // 5a. Check holds ready for pickup
@@ -144,6 +147,9 @@ async function runAvailableNowTask() {
             titlePrefix: "📬 ",
             color: "#2ECC71",
             showHoldStatus: true,
+            showCancelHoldButton: true,
+            showSuspendButton: true,
+            accountId: hold.accountId,
           });
 
           logger.info(
@@ -215,6 +221,12 @@ async function runAvailableNowTask() {
           userNotifications[user.id].holdAvailableItems.push({
             ...availableMatch,
             location: locationNames,
+            holdInfo: {
+              id: hold.holdId,
+              status: hold.holdStatus,
+              position: hold.holdsPosition,
+              pickupLocation: hold.pickupLocation,
+            },
           });
         }
       } catch (error) {
@@ -240,6 +252,7 @@ async function runAvailableNowTask() {
             titlePrefix: "🔔 ",
             color: "#00FF00",
             showLocation: true,
+            showPlaceHoldButton: true,
           },
         );
 
@@ -257,6 +270,8 @@ async function runAvailableNowTask() {
             titlePrefix: "🔔 ",
             color: "#00FF00",
             showLocation: true,
+            showHoldStatus: true,
+            showCancelHoldButton: true,
           },
         );
 
@@ -284,7 +299,7 @@ async function runOnOrderTask() {
 
   try {
     // 1. Fetch and transform library data
-    const libraryData = await fetchLibraryData("on order");
+    const libraryData = await searchNotificationItems("on order");
     const refreshedTitles = transformToTitles(libraryData, "on order");
 
     // 2. Update database with refreshed titles
@@ -316,11 +331,13 @@ async function runOnOrderTask() {
           publicationYear: item.publicationYear,
           description: item.description,
           id: item.id,
+          holdInfo: null,
         })),
         {
           titlePrefix: "🚚 ",
           color: "#FFA500",
           showLocation: false,
+          showPlaceHoldButton: true,
         },
       );
 

@@ -2,6 +2,8 @@ import { PaginatedMessage } from "@sapphire/discord.js-utilities";
 import { ButtonStyle } from "discord.js";
 import { ItemEmbed } from "./ItemEmbed.js";
 
+import logger from "../utils/logger.js";
+
 export class ItemPaginatedMessage extends PaginatedMessage {
   constructor(items, options = {}) {
     super();
@@ -24,12 +26,15 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       showLocation = false,
       showHoldStatus = false,
       showCheckoutStatus = false,
+      showRenewButton = false,
+      showPlaceHoldButton = false,
+      showCancelHoldButton = false,
+      showSuspendButton = false,
+      showResumeButton = false,
       accountId = null,
       branchId = null,
-      showRenewButton = false,
+      checkoutId = null,
     } = options;
-
-    // ... rest of your code stays the same
 
     const selectMenuOptions = [];
 
@@ -73,22 +78,22 @@ export class ItemPaginatedMessage extends PaginatedMessage {
       const { embed, components } = ItemEmbed.createEmbed(item, {
         titlePrefix,
         color,
-        accountId,
-        branchId,
-        checkoutId: item.checkoutId,
-        holdId: item.holdInfo?.id ?? null,
-        metadataId: item.id,
-        hasExistingHold: !!item.holdInfo && item.canCancel,
         showAvailability,
         showLocation,
         showCheckoutStatus,
-        showRenewButton: showRenewButton && !!item.canRenew,
         showHoldStatus,
+        showRenewButton: !!item.canRenew,
         showPlaceHoldButton: !item.holdInfo,
-        showCancelHoldButton: !!item.canCancel,
-        showSuspendButton: !!item.canSuspend,
-        showResumeButton: !!item.canResume,
+        showCancelHoldButton: !!item.holdInfo?.id && !!item.canCancel,
+        showSuspendButton: !!item.holdInfo?.id && !!item.canSuspend,
+        showResumeButton: !!item.holdInfo?.id && !!item.canResume,
+        checkoutId: item.checkoutId,
+        holdId: item.holdInfo?.id ?? null,
+        accountId,
+        metadataId: item.id,
+        hasExistingHold: !!item.holdInfo && item.canCancel,
       });
+
       this.customComponents.push(components);
       this.addPage({ embeds: [embed], components });
     }

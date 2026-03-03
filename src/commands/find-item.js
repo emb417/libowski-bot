@@ -1,15 +1,16 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
-import {
-  searchMediaAvailability,
-  transformToTitles,
-} from "../lib/LibraryApiService.js";
+import { getLibraryCard } from "../lib/database.js";
+import { loginToLibrary } from "../lib/AuthService.js";
 import {
   getAvailableBibItems,
   getAllLocations,
 } from "../lib/AvailabilityService.js";
-import { getLibraryCard } from "../lib/database.js";
-import { loginToLibrary } from "../lib/LibraryApiService.js";
+import { fetchHolds } from "../lib/HoldsService.js";
+import {
+  searchMediaAvailability,
+  transformToTitles,
+} from "../lib/SearchService.js";
 import { ItemPaginatedMessage } from "../lib/ItemPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
@@ -69,21 +70,27 @@ export class FindItemCommand extends Command {
       const format = interaction.options.getString("format");
 
       // Get user's library card (optional for searching, required for holds)
+      let sessionCookies = null; // Declare sessionCookies here
       const libraryCard = await getLibraryCard(interaction.user.id);
-      let sessionCookies = null;
+      let holds = [];
+      let accountId = null;
 
       if (libraryCard) {
         try {
-          sessionCookies = await loginToLibrary(
+          const loginData = await loginToLibrary(
             libraryCard.cardNumber,
             libraryCard.pin,
           );
+          sessionCookies = loginData.sessionCookies; // Assign it here
+          const holdData = await fetchHolds(sessionCookies);
+          holds = holdData.holds;
+          accountId = holdData.accountId;
         } catch (error) {
           logger.warn(
-            `[FindItem] Login failed for ${interaction.user.username}:`,
-            error,
+            `[FindItem] Login or holds fetch failed for ${interaction.user.username}: ${error.message || "Unknown error"}`,
+            error.stack,
           );
-          // Continue without login - user can still search
+          // Continue without login/holds - user can still search
         }
       }
 
@@ -102,35 +109,21 @@ export class FindItemCommand extends Command {
         );
       }
 
-      // Extract account info and existing holds from search results
-      const holdsMap = new Map();
-      const holdsEntities = libraryData.entities?.holds ?? {};
-      for (const hold of Object.values(holdsEntities)) {
-        if (hold.metadataId) {
-          holdsMap.set(hold.metadataId, hold);
-        }
-      }
-
-      const { availableBibItems, copyCountsMap } =
-        await getAvailableBibItems(titles);
+      const bibResults = await getAvailableBibItems(titles);
 
       const itemsWithAvailability = titles.map((title) => {
-        const availabilityForTitle = availableBibItems.filter(
-          (bib) => bib.id === title.id,
-        );
+        const bibResult = bibResults.find((res) => res.id === title.id);
+        const hold = holds.find((h) => h.id === title.id);
 
-        const counts = copyCountsMap.get(title.id) ?? {
-          heldCopies: 0,
-          totalCopies: 0,
-        };
-        const heldCopies = counts.heldCopies;
-        const totalCopies = counts.totalCopies;
+        const heldCopies = bibResult?.heldCopies ?? 0;
+        const totalCopies = bibResult?.totalCopies ?? 0;
+        const availableCopies = bibResult?.availableCopies ?? [];
 
         const locations = getAllLocations();
 
         const structuredAvailability = locations.reduce((acc, location) => {
-          const isAvailableAtLocation = availabilityForTitle.some(
-            (bib) => bib.branch?.name === location.name,
+          const isAvailableAtLocation = availableCopies.some(
+            (bibItem) => bibItem.branch?.name === location.name,
           );
           if (isAvailableAtLocation) {
             acc[location.code] = {
@@ -141,29 +134,26 @@ export class FindItemCommand extends Command {
           return acc;
         }, {});
 
-        const holdInfo = holdsMap.get(title.id) ?? null;
-
         return {
           ...title,
-          availability: structuredAvailability,
           heldCopies,
           totalCopies,
-          holdInfo: holdInfo
+          availability: structuredAvailability,
+          // Root level action flags to match view-holds and ItemPaginatedMessage expectations
+          canCancel: hold?.canCancel ?? false,
+          canSuspend: hold?.canSuspend ?? false,
+          canResume: hold?.canResume ?? false,
+          holdInfo: hold
             ? {
-                id: holdInfo.holdId,
-                status: holdInfo.status,
-                position: holdInfo.holdsPosition,
-                pickupLocation: holdInfo.pickupLocation?.name,
-                expiryDate: holdInfo.expiryDate,
+                id: hold.holdId,
+                status: hold.holdStatus,
+                position: hold.holdsPosition,
+                pickupLocation: hold.pickupLocation,
+                expiryDate: hold.expiryDate,
               }
             : null,
         };
       });
-
-      const accountId = Object.keys(libraryData.entities?.accounts ?? {})[0];
-      const branchId =
-        libraryData.entities?.accounts?.[accountId]?.singleClickHoldsSettings
-          ?.branchId;
 
       const paginatedMessage = new ItemPaginatedMessage(itemsWithAvailability, {
         titlePrefix: "🔍 ",
@@ -171,9 +161,12 @@ export class FindItemCommand extends Command {
         showAvailability: true,
         showLocation: false,
         showHoldStatus: true,
+        showPlaceHoldButton: true,
+        showCancelHoldButton: true,
+        showSuspendButton: true,
+        showResumeButton: true,
         showCheckoutStatus: false,
         accountId,
-        branchId,
       });
 
       // Add a note if user is not logged in

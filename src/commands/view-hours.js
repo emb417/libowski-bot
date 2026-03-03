@@ -1,7 +1,7 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags, EmbedBuilder, ButtonStyle } from "discord.js";
 import { PaginatedMessage } from "@sapphire/discord.js-utilities";
-import { fetchHours } from "../lib/LibraryApiService.js";
+import { fetchHours } from "../lib/HoursService.js";
 import logger from "../utils/logger.js";
 
 const DAYS = [

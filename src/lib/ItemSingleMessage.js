@@ -10,23 +10,33 @@ export class ItemSingleMessage {
       showAvailability = false,
       showLocation = true,
       showHoldStatus = false,
-      showHoldButton = false,
+      showPlaceHoldButton = false,
+      accountId = null,
+      branchId = null,
     } = options;
 
     try {
       const user = await client.users.fetch(userId);
 
       for (const item of items) {
-        const { embed } = ItemEmbed.createEmbed(item, {
+        const { embed, components } = ItemEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,
           showLocation,
           showHoldStatus,
-          showHoldButton,
+          showPlaceHoldButton: showPlaceHoldButton && !item.holdInfo,
+          showCancelHoldButton: !!item.holdInfo?.id && !!item.canCancel,
+          showSuspendButton: !!item.canSuspend,
+          showResumeButton: !!item.canResume,
+          accountId,
+          branchId,
+          holdId: item.holdInfo?.id ?? null,
+          metadataId: item.id,
+          hasExistingHold: !!item.holdInfo,
         });
 
-        await user.send({ embeds: [embed] });
+        await user.send({ embeds: [embed], components });
       }
 
       logger.info(`The Dude sent ${items.length} notifications to ${username}`);
@@ -45,6 +55,8 @@ export class ItemSingleMessage {
       color = "#FFA500",
       showAvailability = false,
       showLocation = false,
+      accountId = null,
+      branchId = null,
     } = options;
 
     try {
@@ -59,15 +71,24 @@ export class ItemSingleMessage {
       const channel = await client.channels.fetch(channelId);
 
       for (const item of items) {
-        const { embed } = ItemEmbed.createEmbed(item, {
+        const { embed, components } = ItemEmbed.createEmbed(item, {
           titlePrefix,
           color,
           showAvailability,
           showLocation,
-          showHoldButton: false,
+          showHoldStatus: true,
+          showPlaceHoldButton: !item.holdInfo,
+          showCancelHoldButton: !!item.holdInfo?.id && !!item.canCancel,
+          showSuspendButton: !!item.canSuspend,
+          showResumeButton: !!item.canResume,
+          accountId,
+          branchId,
+          holdId: item.holdInfo?.id ?? null,
+          metadataId: item.id,
+          hasExistingHold: !!item.holdInfo,
         });
 
-        await channel.send({ embeds: [embed] });
+        await channel.send({ embeds: [embed], components });
       }
 
       logger.info(`The Dude sent ${items.length} notifications to channel`);

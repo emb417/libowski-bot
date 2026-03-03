@@ -26,46 +26,54 @@ const AVAILABILITY_URL = (itemId) =>
 export async function getAvailableBibItems(items) {
   logger.info(`${items.length} items >> getting detailed availability data...`);
 
-  const availableBibItems = [];
-  const copyCountsMap = new Map();
+  const results = [];
   let counter = 1;
 
   for (const item of items) {
     try {
       const response = await fetch(AVAILABILITY_URL(item.id));
-      const data = await response.text();
-      const bibItemsData = JSON.parse(data).entities.bibItems;
-      const availabilitiesData = JSON.parse(data).entities.availabilities;
+      if (!response.ok) {
+        throw new Error(`Failed to fetch availability: ${response.status}`);
+      }
+      const data = await response.json();
+      const bibItemsData = data.entities.bibItems || {};
+      const availabilitiesData = data.entities.availabilities || {};
       const availability = availabilitiesData[item.id];
       const heldCopies = availability?.heldCopies ?? 0;
       const totalCopies = availability?.totalCopies ?? 0;
 
-      // Always store counts regardless of availability
-      copyCountsMap.set(item.id, { heldCopies, totalCopies });
-
-      const availableForItem = Object.values(bibItemsData)
-        .filter((bibItem) => bibItem.availability.status === "AVAILABLE")
-        .map((bibItem) => ({
-          ...bibItem,
-          id: item.id,
-          heldCopies,
-          totalCopies,
-        }));
-
-      logger.debug(
-        `${counter}. ${availableForItem.length} of ${Object.values(bibItemsData).length} bibItems for ${item.title}. ${heldCopies}/${totalCopies} held.`,
+      const availableCopies = Object.values(bibItemsData).filter(
+        (bibItem) =>
+          bibItem.availability.status === "AVAILABLE" ||
+          bibItem.availability.status === "ON_ORDER",
       );
 
-      availableBibItems.push(...availableForItem);
+      logger.debug(
+        `${counter}. ${availableCopies.length} available copies for ${item.title}. ${heldCopies}/${totalCopies} held.`,
+      );
+
+      results.push({
+        id: item.id,
+        heldCopies,
+        totalCopies,
+        availableCopies,
+      });
       counter++;
     } catch (error) {
       logger.error(
         `The Dude failed to parse bibItems for ${item.id}: ${error.message}`,
       );
+      // Still push an entry so callers can find it, even if empty
+      results.push({
+        id: item.id,
+        heldCopies: 0,
+        totalCopies: 0,
+        availableCopies: [],
+      });
     }
   }
 
-  return { availableBibItems, copyCountsMap };
+  return results;
 }
 
 export function getLocationByName(locationName) {

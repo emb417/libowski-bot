@@ -1,7 +1,8 @@
 import { Command } from "@sapphire/framework";
 import { MessageFlags } from "discord.js";
 import { getLibraryCard } from "../lib/database.js";
-import { loginToLibrary, fetchHolds } from "../lib/LibraryApiService.js";
+import { loginToLibrary } from "../lib/AuthService.js";
+import { fetchHolds } from "../lib/HoldsService.js";
 import { ItemPaginatedMessage } from "../lib/ItemPaginatedMessage.js";
 import logger from "../utils/logger.js";
 
@@ -36,7 +37,7 @@ export class ViewHoldsCommand extends Command {
             "Yeah, well, you know, that's just like, uh, you don't even have a library card linked. Use `/link-account` to link your card first.",
         });
       }
-      const sessionCookies = await loginToLibrary(
+      const { sessionCookies } = await loginToLibrary(
         libraryCard.cardNumber,
         libraryCard.pin,
       );
@@ -92,6 +93,9 @@ export class ViewHoldsCommand extends Command {
         showAvailability: false,
         showLocation: false,
         showHoldStatus: true,
+        showCancelHoldButton: true,
+        showSuspendButton: true,
+        showResumeButton: true,
         accountId,
       });
 
