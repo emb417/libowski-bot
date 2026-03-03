@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Command } from "@sapphire/framework";
 import { EmbedBuilder, MessageFlags } from "discord.js";
 import logger from "../utils/logger.js";
