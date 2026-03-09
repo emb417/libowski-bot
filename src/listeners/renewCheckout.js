@@ -22,8 +22,8 @@ export class RenewCheckoutButtonListener extends Listener {
       return;
     }
 
-    // Only handle renew buttons (format: "renew:checkoutId:accountId")
-    if (!interaction.customId.startsWith("renew:")) {
+    // Only handle renew buttons (format: "renewCheckout:checkoutId:accountId")
+    if (!interaction.customId.startsWith("renewCheckout:")) {
       return;
     }
 
