@@ -72,7 +72,12 @@ export async function updateLibraryItems(refreshedTitles, type) {
       );
 
       if (existingItem) {
-        return { ...existingItem, ...refreshedTitle };
+        return {
+          ...existingItem,
+          ...refreshedTitle,
+          createDate: existingItem.createDate,
+          notifyDate: existingItem.notifyDate,
+        };
       }
 
       refreshedTitle.createDate = Math.floor(Date.now() / 1000);
