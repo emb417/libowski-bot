@@ -156,6 +156,9 @@ export class ItemPaginatedMessage extends PaginatedMessage {
     if (item.isOverdue) {
       return `⚠️ OVERDUE`;
     }
+    if (item.isDueSoon) {
+      return `⏰ DUE SOON`;
+    }
     if (item.dueDate) {
       const daysUntilDue = Math.ceil(
         (new Date(item.dueDate) - new Date()) / (1000 * 60 * 60 * 24),

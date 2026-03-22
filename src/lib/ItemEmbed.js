@@ -236,6 +236,8 @@ export class ItemEmbed {
 
       if (item.isOverdue) {
         statusText = `⚠️ **OVERDUE** - Due: ${item.dueDate}`;
+      } else if (item.isDueSoon) {
+        statusText = `⏰ **DUE SOON** - Due: ${item.dueDate} (${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"})`;
       } else if (daysUntilDue === 0) {
         statusText = `⏰ Due **today** (${item.dueDate})`;
       } else if (daysUntilDue === 1) {

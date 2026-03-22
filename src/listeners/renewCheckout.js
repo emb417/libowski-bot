@@ -70,7 +70,7 @@ export class RenewCheckoutButtonListener extends Listener {
       }
 
       // Renew the checkout
-      logger.info(
+      logger.debug(
         `[RenewCheckout] Renewing checkout ${checkoutId} for user ${interaction.user.username}`,
       );
 
@@ -81,17 +81,24 @@ export class RenewCheckoutButtonListener extends Listener {
         content: `✅ **Item renewed successfully!**\n\nYour due date has been extended.`,
       });
     } catch (error) {
-      logger.error(
-        { err: error },
-        `[RenewCheckout] Failed to renew checkout for user ${interaction.user.username}`,
-      );
+      const isHoldRequestError = error?.message?.includes("Item fills a hold request");
+
+      if (isHoldRequestError) {
+        // Logging handled by CheckoutService.js
+      } else {
+        logger.error(
+          { err: error },
+          `[RenewCheckout] Failed to renew checkout for user ${interaction.user.username}`,
+        );
+      }
 
       const errorMessage = error?.message?.includes("Login failed")
         ? "Failed to login to your library account. Please verify your credentials with `/link-account`."
-        : error?.message?.includes("cannot be renewed")
-          ? "This item cannot be renewed. It may have reached the maximum number of renewals or have holds."
-          : `Failed to renew item: ${error?.message || "Unknown error"}`;
-
+        : isHoldRequestError
+          ? "❌ **Renewal Failed:** This item cannot be renewed because another patron has a hold on it."
+          : error?.message?.includes("cannot be renewed")
+            ? "This item cannot be renewed. It may have reached the maximum number of renewals or have holds."
+            : `Failed to renew item: ${error?.message || "Unknown error"}`;
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
           content: errorMessage,

@@ -7,7 +7,7 @@ import {
 import logger from "../utils/logger.js";
 
 export async function fetchCheckedOut(sessionCookies) {
-  const url = "https://wccls.bibliocommons.com/v2/checkedout/out";
+  const url = "https://wccls.bibliocommons.com/v2/checkedout";
 
   try {
     const response = await fetch(url, {
@@ -26,12 +26,12 @@ export async function fetchCheckedOut(sessionCookies) {
 
     // Transform checkout data
     const checkedOutItems = Object.values(checkouts).map((checkout) => {
-      const bib = bibs[checkout.metadataId];
-      const briefInfo = bib?.briefInfo || {};
-
-      // Determine if item is overdue
+      const bib = bibs[checkout.metadataId] || {};
+      const briefInfo = bib.briefInfo || {};
       const dueDate = checkout.dueDate ? new Date(checkout.dueDate) : null;
-      const isOverdue = dueDate && dueDate < new Date();
+      const isOverdue =
+        checkout.status === "OVERDUE" || (dueDate && dueDate < new Date());
+      const isDueSoon = checkout.status === "COMING_DUE";
 
       // Get jacket image
       const jacket = briefInfo.jacket || {};
@@ -41,16 +41,18 @@ export async function fetchCheckedOut(sessionCookies) {
         id: checkout.metadataId,
         checkoutId: checkout.checkoutId,
         canRenew: checkout.actions?.includes("renew") ?? false,
-        title: briefInfo.title || "Unknown Title",
+        title: briefInfo.title || checkout.bibTitle || "Unknown Title",
         subtitle: briefInfo.subtitle || "",
-        format: briefInfo.format || "Unknown Format",
+        format: briefInfo.format || checkout.format || "Unknown Format",
         publicationYear: briefInfo.publicationDate || "",
         description: briefInfo.description || "No description available.",
         image,
         url: `https://wccls.bibliocommons.com/v2/record/${checkout.metadataId}`,
         type: "checkout",
         dueDate: checkout.dueDate,
+        status: checkout.status,
         isOverdue,
+        isDueSoon,
         timesRenewed: checkout.timesRenewed || 0,
         branch: checkout.branch?.name || null,
         callNumber: checkout.callNumber || null,
@@ -97,6 +99,21 @@ export async function renewCheckout(sessionCookies, checkoutId, accountId) {
       data.error?.message || "Unknown error renewing checkout";
     logger.error(`Failed to renew checkout: ${errorMessage}`);
     throw new Error(errorMessage);
+  }
+
+  if (data.failures && Array.isArray(data.failures)) {
+    const failedRenewal = data.failures.find(
+      (f) => String(f.id) === String(checkoutId),
+    );
+    if (failedRenewal) {
+      const errorMessage =
+        failedRenewal.errorResponseDTO?.message ||
+        "This item cannot be renewed. It may have reached the maximum number of renewals or have holds.";
+      logger.info(
+        `Renewal attempted but failed for checkout ${checkoutId}: ${errorMessage}`,
+      );
+      throw new Error(errorMessage);
+    }
   }
 
   logger.info(`Successfully renewed checkout ${checkoutId}`);
