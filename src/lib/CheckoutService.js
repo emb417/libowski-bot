@@ -28,6 +28,7 @@ export async function fetchCheckedOut(sessionCookies) {
     const checkedOutItems = Object.values(checkouts).map((checkout) => {
       const bib = bibs[checkout.metadataId] || {};
       const briefInfo = bib.briefInfo || {};
+      const availability = bib.availability || {};
       const dueDate = checkout.dueDate ? new Date(checkout.dueDate) : null;
       const isOverdue =
         checkout.status === "OVERDUE" || (dueDate && dueDate < new Date());
@@ -54,6 +55,8 @@ export async function fetchCheckedOut(sessionCookies) {
         isOverdue,
         isDueSoon,
         timesRenewed: checkout.timesRenewed || 0,
+        heldCopies: availability.heldCopies || 0,
+        totalCopies: availability.totalCopies || 0,
         branch: checkout.branch?.name || null,
         callNumber: checkout.callNumber || null,
         barcode: checkout.barcode || null,
