@@ -30,8 +30,10 @@ export async function fetchCheckedOut(sessionCookies) {
       const briefInfo = bib.briefInfo || {};
       const availability = bib.availability || {};
       const dueDate = checkout.dueDate ? new Date(checkout.dueDate) : null;
+      const todayStr = new Date().toISOString().split("T")[0];
       const isOverdue =
-        checkout.status === "OVERDUE" || (dueDate && dueDate < new Date());
+        checkout.status === "OVERDUE" ||
+        (checkout.dueDate && checkout.dueDate < todayStr);
       const isDueSoon = checkout.status === "COMING_DUE";
 
       // Get jacket image
