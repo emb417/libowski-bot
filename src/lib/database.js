@@ -64,26 +64,35 @@ export async function updateLibraryItems(refreshedTitles, type) {
   );
 
   // Merge refreshed titles
-  db.data.libraryItems = [
-    ...otherExistingLibraryItems,
-    ...refreshedTitles.map((refreshedTitle) => {
-      const existingItem = db.data.libraryItems.find(
-        (item) => item.id === refreshedTitle.id,
-      );
+  const updatedItemsOfType = refreshedTitles.map((refreshedTitle) => {
+    const existingItem = db.data.libraryItems.find(
+      (item) => item.id === refreshedTitle.id,
+    );
 
-      if (existingItem) {
-        return {
-          ...existingItem,
-          ...refreshedTitle,
-          createDate: existingItem.createDate,
-          notifyDate: existingItem.notifyDate,
-        };
-      }
+    if (existingItem) {
+      return {
+        ...existingItem,
+        ...refreshedTitle,
+        createDate: existingItem.createDate,
+        notifyDate: existingItem.notifyDate,
+      };
+    }
 
-      refreshedTitle.createDate = Math.floor(Date.now() / 1000);
-      return refreshedTitle;
-    }),
-  ];
+    refreshedTitle.createDate = Math.floor(Date.now() / 1000);
+    return refreshedTitle;
+  });
+
+  // Limit to 20 most recent if type is "on order" or "available now"
+  if (type === "on order" || type === "available now") {
+    updatedItemsOfType.sort((a, b) => b.createDate - a.createDate);
+    const limitedItems = updatedItemsOfType.slice(0, 20);
+    db.data.libraryItems = [...otherExistingLibraryItems, ...limitedItems];
+  } else {
+    db.data.libraryItems = [
+      ...otherExistingLibraryItems,
+      ...updatedItemsOfType,
+    ];
+  }
 
   await db.write();
   logger.debug(
