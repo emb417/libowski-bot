@@ -1,6 +1,6 @@
 {
   "name": "libowski-bot",
-  "version": "1.8.8",
+  "version": "1.8.9",
   "description": "Discord bot and API for library and WCCLS interactions",
   "main": "src/index.js",
   "type": "module",
