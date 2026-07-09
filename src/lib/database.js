@@ -3,6 +3,7 @@ import { JSONFilePreset } from "lowdb/node";
 import logger from "../utils/logger.js";
 
 const DB_PATH = "/app/data/db.json";
+const LIBRARY_ITEMS_LIMIT = 40;
 
 async function initDB() {
   const db = await JSONFilePreset(DB_PATH, { users: [], libraryItems: [] });
@@ -82,10 +83,10 @@ export async function updateLibraryItems(refreshedTitles, type) {
     return refreshedTitle;
   });
 
-  // Limit to 20 most recent if type is "on order" or "available now"
+  // Limit to most recent LIBRARY_ITEMS_LIMIT if type is "on order" or "available now"
   if (type === "on order" || type === "available now") {
     updatedItemsOfType.sort((a, b) => b.createDate - a.createDate);
-    const limitedItems = updatedItemsOfType.slice(0, 20);
+    const limitedItems = updatedItemsOfType.slice(0, LIBRARY_ITEMS_LIMIT);
     db.data.libraryItems = [...otherExistingLibraryItems, ...limitedItems];
   } else {
     db.data.libraryItems = [
