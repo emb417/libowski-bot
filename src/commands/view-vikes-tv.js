@@ -50,14 +50,20 @@ export class ViewVikesTVCommand extends Command {
       const $ = cheerio.load(html);
       const games = [];
 
-      $('script[type="application/ld+json"]').each((_, el) => {
+      $('div.nfl-o-matchup-cards').each((_, el) => {
+        const $card = $(el);
+        const $jsonScript = $card.find('script[type="application/ld+json"]');
+        
+        if ($jsonScript.length === 0) return;
+        
         try {
-          const json = JSON.parse($(el).html());
+          const json = JSON.parse($jsonScript.html());
           if (json["@type"] === "SportsEvent") {
-            games.push(json);
+            const tv = $card.find('.nfl-o-matchup-cards__media-tv--networks').text().trim();
+            games.push({ ...json, tv: tv || "TBD" });
           }
         } catch (e) {
-          // Ignore invalid JSON
+          // Ignore
         }
       });
 
@@ -104,7 +110,7 @@ export class ViewVikesTVCommand extends Command {
 
         embed.addFields({
           name: `${opponent} (${location})`,
-          value: `📅 ${dateStr} at ${timeStr}`,
+          value: `📅 ${dateStr} at ${timeStr}\n📺 ${game.tv}`,
           inline: false,
         });
       });
