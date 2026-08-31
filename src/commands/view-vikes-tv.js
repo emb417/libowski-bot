@@ -49,16 +49,17 @@ export class ViewVikesTVCommand extends Command {
       const html = await response.text();
       const $ = cheerio.load(html);
       const games = [];
-
-      $('div.nfl-o-matchup-cards').each((_, el) => {
-        const $card = $(el);
-        const $jsonScript = $card.find('script[type="application/ld+json"]');
+      const scriptTags = $('script[type="application/ld+json"]');
+      
+      scriptTags.each((_, el) => {
+        const $script = $(el);
+        const $card = $script.closest('div.nfl-o-matchup-cards');
         
-        if ($jsonScript.length === 0) return;
+        if ($card.length === 0) return;
         
         try {
-          const json = JSON.parse($jsonScript.html());
-          if (json["@type"] === "SportsEvent") {
+          const json = JSON.parse($script.html());
+          if (json["@type"] === "SportsEvent" && json.startDate) {
             const tv = $card.find('.nfl-o-matchup-cards__media-tv--networks').text().trim();
             games.push({ ...json, tv: tv || "TBD" });
           }
