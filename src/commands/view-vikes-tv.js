@@ -6,6 +6,16 @@ import logger from "../utils/logger.js";
 
 const SCHEDULE_URL = "https://www.vikings.com/schedule/";
 
+// Candidate selectors for the "network" text on a matchup card. The exact
+// class name has changed on nfl.com club-site templates before, so we try
+// several and use whichever one actually returns text.
+const TV_SELECTORS = [
+  ".nfl-o-matchup-cards__media-tv--networks",
+  ".nfl-o-matchup-card__media-tv--networks",
+  "[class*='media-tv']",
+  "[class*='matchup'] [class*='network']",
+];
+
 export class ViewVikesTVCommand extends Command {
   constructor(context, options) {
     super(context, {
@@ -48,31 +58,65 @@ export class ViewVikesTVCommand extends Command {
 
       const html = await response.text();
       const $ = cheerio.load(html);
-      const games = [];
-      const scriptTags = $('script[type="application/ld+json"]');
-      
-      scriptTags.each((_, el) => {
-        const $script = $(el);
-        const $card = $script.closest('div.nfl-o-matchup-cards');
-        
-        if ($card.length === 0) return;
-        
+
+      // --- 1. Pull every SportsEvent out of the page's JSON-LD, without
+      // assuming it lives inside any particular card wrapper. Sites commonly
+      // emit these as one script with an array, one script per event, or
+      // wrapped in an @graph — so we handle all three shapes.
+      const sportsEvents = [];
+      $('script[type="application/ld+json"]').each((_, el) => {
+        const raw = $(el).html();
+        if (!raw) return;
+
+        let parsed;
         try {
-          const json = JSON.parse($script.html());
-          if (json["@type"] === "SportsEvent" && json.startDate) {
-            const tv = $card.find('.nfl-o-matchup-cards__media-tv--networks').text().trim();
-            games.push({ ...json, tv: tv || "TBD" });
-          }
+          parsed = JSON.parse(raw);
         } catch (e) {
-          // Ignore
+          return;
+        }
+
+        const candidates = Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed?.["@graph"])
+            ? parsed["@graph"]
+            : [parsed];
+
+        for (const item of candidates) {
+          if (item && item["@type"] === "SportsEvent" && item.startDate) {
+            sportsEvents.push(item);
+          }
         }
       });
 
-      if (games.length === 0) {
+      logger.info(
+        `[/view-vikes-tv] Found ${sportsEvents.length} SportsEvent entries in JSON-LD.`,
+      );
+
+      if (sportsEvents.length === 0) {
         return interaction.editReply({
           content: "🏈 No Vikings games found on the schedule.",
         });
       }
+
+      // --- 2. Best-effort TV network lookup, matched by position. The
+      // JSON-LD events are typically emitted in the same order the cards
+      // appear on the page, so we zip them up by index. If nothing matches,
+      // we just fall back to "TBD" instead of dropping the whole game.
+      let $tvNodes = $();
+      for (const selector of TV_SELECTORS) {
+        $tvNodes = $(selector);
+        if ($tvNodes.length > 0) {
+          logger.info(
+            `[/view-vikes-tv] Using TV selector "${selector}" (${$tvNodes.length} matches).`,
+          );
+          break;
+        }
+      }
+
+      const games = sportsEvents.map((event, i) => {
+        const tvText = $tvNodes.eq(i)?.text().trim();
+        return { ...event, tv: tvText || "TBD" };
+      });
 
       // Filter upcoming games (startDate is in the future)
       const now = new Date();
@@ -118,7 +162,10 @@ export class ViewVikesTVCommand extends Command {
 
       return interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      logger.error({ err: error }, "[ViewVikesTVCommand] Error fetching schedule");
+      logger.error(
+        { err: error },
+        "[ViewVikesTVCommand] Error fetching schedule",
+      );
       return interaction.editReply({
         content: `An error occurred while fetching the schedule: ${error.message}`,
       });
