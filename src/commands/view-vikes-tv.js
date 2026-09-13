@@ -120,9 +120,10 @@ export class ViewVikesTVCommand extends Command {
 
       // Filter upcoming games (startDate is in the future)
       const now = new Date();
+      const parseDate = (startDate) => new Date(startDate.endsWith('Z') ? startDate : startDate + 'Z');
       const upcomingGames = games
-        .filter((g) => new Date(g.startDate) > now)
-        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+        .filter((g) => parseDate(g.startDate) > now)
+        .sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate))
         .slice(0, 10);
 
       if (upcomingGames.length === 0) {
@@ -137,15 +138,17 @@ export class ViewVikesTVCommand extends Command {
         .setFooter({ text: "Schedule via vikings.com" });
 
       upcomingGames.forEach((game) => {
-        const date = new Date(game.startDate);
+        const date = parseDate(game.startDate);
         const dateStr = date.toLocaleDateString("en-US", {
           weekday: "short",
           month: "short",
           day: "numeric",
+          timeZone: "America/Los_Angeles",
         });
         const timeStr = date.toLocaleTimeString("en-US", {
           hour: "numeric",
           minute: "2-digit",
+          timeZone: "America/Los_Angeles",
         });
 
         const homeTeam = game.homeTeam?.name || "Unknown";
