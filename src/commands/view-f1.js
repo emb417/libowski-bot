@@ -3,8 +3,6 @@ import { Command } from "@sapphire/framework";
 import { EmbedBuilder, MessageFlags } from "discord.js";
 import logger from "../utils/logger.js";
 
-const SCHEDULE_URL = "https://racingnews365.com/f1/calendar/2026";
-
 export class ViewF1Command extends Command {
   constructor(context, options) {
     super(context, {
@@ -35,7 +33,10 @@ export class ViewF1Command extends Command {
           " requested F1 season schedule.",
       );
 
-      const response = await fetch(SCHEDULE_URL, {
+      const currentYear = new Date().getFullYear();
+      const scheduleUrl = `https://racingnews365.com/f1/calendar/${currentYear}`;
+
+      const response = await fetch(scheduleUrl, {
         headers: {
           accept:
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -74,9 +75,9 @@ export class ViewF1Command extends Command {
       }
 
       const embed = new EmbedBuilder()
-        .setTitle("🏎️ Upcoming Formula 1 Races — 2026 Season")
+        .setTitle("🏎️ Upcoming Formula 1 Races")
         .setColor("#E8002D")
-        .setFooter({ text: "Schedule via racingnews365.com" });
+        .setFooter({ text: `Schedule via racingnews365.com • ${scheduleUrl}` });
 
       upcomingRaces.forEach((race) => {
         embed.addFields({

@@ -32,8 +32,39 @@ export class ViewBlazersTVCommand extends Command {
         `[/view-blazers-tv] User ${interaction.user.username} requested Blazers TV schedule.`,
       );
 
-      // Get current timestamp for the API request
-      const currentTimestamp = Math.floor(Date.now() / 1000);
+      // Get current timestamp for the start of today in Pacific Time (America/Los_Angeles)
+      const now = new Date();
+      const ptFormatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      });
+      const parts = ptFormatter.formatToParts(now);
+      const pYear = parts.find((p) => p.type === "year").value;
+      const pMonth = parts.find((p) => p.type === "month").value;
+      const pDay = parts.find((p) => p.type === "day").value;
+
+      let guessTime = Date.UTC(pYear, pMonth - 1, pDay, 7, 0, 0);
+      for (let h = 0; h < 24; h++) {
+        const testDate = new Date(Date.UTC(pYear, pMonth - 1, pDay, h, 0, 0));
+        const laHourStr = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          hour: "numeric",
+          hour12: false,
+        }).format(testDate);
+        const laHour = parseInt(laHourStr.replace(/^24$/, "0"), 10);
+        const laDay = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          day: "numeric",
+        }).format(testDate);
+
+        if (laHour === 0 && parseInt(laDay, 10) === parseInt(pDay, 10)) {
+          guessTime = testDate.getTime();
+          break;
+        }
+      }
+      const currentTimestamp = Math.floor(guessTime / 1000);
 
       // Fetch Gracenote TV listings
       const response = await fetch(
@@ -138,7 +169,8 @@ export class ViewBlazersTVCommand extends Command {
       // Build embed
       const embed = new EmbedBuilder()
         .setTitle("🏀 Upcoming Portland Trail Blazers Games")
-        .setColor("#E03A3E"); // Blazers red
+        .setColor("#E03A3E") // Blazers red
+        .setFooter({ text: "Schedule via Gracenote • https://tvlistings.gracenote.com/ss-list-affiliates.html?aid=katu" });
 
       // Add each date as a field with all showtimes
       uniqueDates.forEach((date, index) => {
