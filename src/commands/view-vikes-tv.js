@@ -134,8 +134,9 @@ export class ViewVikesTVCommand extends Command {
 
       const embed = new EmbedBuilder()
         .setTitle("🏈 Upcoming Minnesota Vikings Games")
+        .setURL(SCHEDULE_URL)
         .setColor("#4F2683") // Vikings purple
-        .setFooter({ text: "Schedule via vikings.com • https://www.vikings.com/schedule/" });
+        .setFooter({ text: "Schedule via vikings.com" });
 
       upcomingGames.forEach((game) => {
         const date = parseDate(game.startDate);
