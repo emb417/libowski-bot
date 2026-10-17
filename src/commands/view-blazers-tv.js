@@ -169,7 +169,8 @@ export class ViewBlazersTVCommand extends Command {
       // Build embed
       const embed = new EmbedBuilder()
         .setTitle("🏀 Upcoming Portland Trail Blazers Games")
-        .setColor("#E03A3E"); // Blazers red
+        .setColor("#E03A3E") // Blazers red
+        .setFooter({ text: "Schedule via Gracenote • https://tvlistings.gracenote.com/ss-list-affiliates.html?aid=katu" });
 
       // Add each date as a field with all showtimes
       uniqueDates.forEach((date, index) => {
