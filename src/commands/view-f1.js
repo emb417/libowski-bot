@@ -76,8 +76,9 @@ export class ViewF1Command extends Command {
 
       const embed = new EmbedBuilder()
         .setTitle("🏎️ Upcoming Formula 1 Races")
+        .setURL(scheduleUrl)
         .setColor("#E8002D")
-        .setFooter({ text: `Schedule via racingnews365.com • ${scheduleUrl}` });
+        .setFooter({ text: "Schedule via racingnews365.com" });
 
       upcomingRaces.forEach((race) => {
         embed.addFields({
