@@ -74,7 +74,7 @@ export class ViewF1Command extends Command {
       }
 
       const embed = new EmbedBuilder()
-        .setTitle("🏎️ Upcoming Formula 1 Races — 2026 Season")
+        .setTitle("🏎️ Upcoming Formula 1 Races")
         .setColor("#E8002D")
         .setFooter({ text: "Schedule via racingnews365.com" });
 
