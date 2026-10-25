@@ -3,12 +3,14 @@ import { Command } from "@sapphire/framework";
 import { EmbedBuilder, MessageFlags } from "discord.js";
 import logger from "../utils/logger.js";
 
+const ALLOWLIST = ["katu", "kunp", "nbc", "peacock", "prime video"];
+
 export class ViewBlazersTVCommand extends Command {
   constructor(context, options) {
     super(context, {
       ...options,
       name: "view-blazers-tv",
-      description: "View upcoming Portland Trail Blazers games on TV.",
+      description: "View upcoming Portland Trail Blazers games on TV (filtered by your services).",
     });
   }
 
@@ -29,195 +31,318 @@ export class ViewBlazersTVCommand extends Command {
       });
 
       logger.info(
-        `[/view-blazers-tv] User ${interaction.user.username} requested Blazers TV schedule.`,
+        `[/view-blazers-tv] User ${interaction.user.username} requested filtered Blazers TV schedule.`,
       );
 
-      // Get current timestamp for the start of today in Pacific Time (America/Los_Angeles)
       const now = new Date();
-      const ptFormatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Los_Angeles",
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-      });
-      const parts = ptFormatter.formatToParts(now);
-      const pYear = parts.find((p) => p.type === "year").value;
-      const pMonth = parts.find((p) => p.type === "month").value;
-      const pDay = parts.find((p) => p.type === "day").value;
 
-      let guessTime = Date.UTC(pYear, pMonth - 1, pDay, 7, 0, 0);
-      for (let h = 0; h < 24; h++) {
-        const testDate = new Date(Date.UTC(pYear, pMonth - 1, pDay, h, 0, 0));
-        const laHourStr = new Intl.DateTimeFormat("en-US", {
+      // 1. Fetch Gracenote TV listings
+      let gnGames = [];
+      try {
+        const ptFormatter = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Los_Angeles",
-          hour: "numeric",
-          hour12: false,
-        }).format(testDate);
-        const laHour = parseInt(laHourStr.replace(/^24$/, "0"), 10);
-        const laDay = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "numeric",
           day: "numeric",
-        }).format(testDate);
+        });
+        const parts = ptFormatter.formatToParts(now);
+        const pYear = parts.find((p) => p.type === "year").value;
+        const pMonth = parts.find((p) => p.type === "month").value;
+        const pDay = parts.find((p) => p.type === "day").value;
 
-        if (laHour === 0 && parseInt(laDay, 10) === parseInt(pDay, 10)) {
-          guessTime = testDate.getTime();
-          break;
-        }
-      }
-      const currentTimestamp = Math.floor(guessTime / 1000);
+        let guessTime = Date.UTC(pYear, pMonth - 1, pDay, 7, 0, 0);
+        for (let h = 0; h < 24; h++) {
+          const testDate = new Date(Date.UTC(pYear, pMonth - 1, pDay, h, 0, 0));
+          const laHourStr = new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Los_Angeles",
+            hour: "numeric",
+            hour12: false,
+          }).format(testDate);
+          const laHour = parseInt(laHourStr.replace(/^24$/, "0"), 10);
+          const laDay = new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Los_Angeles",
+            day: "numeric",
+          }).format(testDate);
 
-      // Fetch Gracenote TV listings
-      const response = await fetch(
-        "https://tvlistings.gracenote.com/api/sslgrid",
-        {
-          method: "POST",
-          headers: {
-            accept: "*/*",
-            "accept-language":
-              "en-US,en;q=0.9,es;q=0.8,pt;q=0.7,pt-BR;q=0.6,pt-PT;q=0.5",
-            "cache-control": "no-cache",
-            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-            pragma: "no-cache",
-            "x-requested-with": "XMLHttpRequest",
-            referer:
-              "https://tvlistings.gracenote.com/ss-list-affiliates.html?aid=katu",
-            "user-agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
-          },
-          body: `timespan=336&timestamp=${currentTimestamp}&prgsvcid=62792&headendId=NY65256&countryCode=USA&postalCode=97232&device=X&userId=-&aid=katu&DSTUTCOffset=-420&STDUTCOffset=-480&DSTStart=0001-01-01T00%3A00Z&DSTEnd=0001-01-01T00%3A00Z&languagecode=en`,
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`TV listings API returned ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Extract listings from the date-grouped response
-      // The API returns { "2026-02-28": [...], "2026-03-01": [...], ... }
-      let allListings = [];
-
-      if (typeof data === "object" && data !== null) {
-        // Flatten all date groups into a single array
-        for (const dateKey in data) {
-          if (Array.isArray(data[dateKey])) {
-            allListings = allListings.concat(data[dateKey]);
+          if (laHour === 0 && parseInt(laDay, 10) === parseInt(pDay, 10)) {
+            guessTime = testDate.getTime();
+            break;
           }
         }
-      } else {
-        logger.warn("[ViewBlazersTVCommand] Unexpected API response structure");
-        logger.debug({ data });
+        const currentTimestamp = Math.floor(guessTime / 1000);
+
+        const response = await fetch(
+          "https://tvlistings.gracenote.com/api/sslgrid",
+          {
+            method: "POST",
+            headers: {
+              accept: "*/*",
+              "accept-language":
+                "en-US,en;q=0.9,es;q=0.8,pt;q=0.7,pt-BR;q=0.6,pt-PT;q=0.5",
+              "cache-control": "no-cache",
+              "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+              pragma: "no-cache",
+              "x-requested-with": "XMLHttpRequest",
+              referer:
+                "https://tvlistings.gracenote.com/ss-list-affiliates.html?aid=katu",
+              "user-agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+            },
+            body: `timespan=336&timestamp=${currentTimestamp}&prgsvcid=62792&headendId=NY65256&countryCode=USA&postalCode=97232&device=X&userId=-&aid=katu&DSTUTCOffset=-420&STDUTCOffset=-480&DSTStart=0001-01-01T00%3A00Z&DSTEnd=0001-01-01T00%3A00Z&languagecode=en`,
+          },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          let allListings = [];
+          if (typeof data === "object" && data !== null) {
+            for (const dateKey in data) {
+              if (Array.isArray(data[dateKey])) {
+                allListings = allListings.concat(data[dateKey]);
+              }
+            }
+          }
+          gnGames = allListings.filter((listing) => {
+            const program = listing.program || {};
+            const title = program.title || "";
+            const episodeTitle = program.episodeTitle || "";
+            const description = program.shortDesc || "";
+
+            const isNBAGame =
+              title.toLowerCase().includes("nba basketball") ||
+              episodeTitle.toLowerCase().includes("nba basketball") ||
+              title.toLowerCase().includes("nba:");
+
+            const hasBlazers =
+              title.toLowerCase().includes("portland trail blazers") ||
+              title.toLowerCase().includes("trail blazers") ||
+              episodeTitle.toLowerCase().includes("portland trail blazers") ||
+              episodeTitle.toLowerCase().includes("trail blazers") ||
+              description.toLowerCase().includes("portland trail blazers") ||
+              description.toLowerCase().includes("trail blazers");
+
+            return isNBAGame && hasBlazers;
+          });
+        }
+      } catch (gnError) {
+        logger.warn(
+          { err: gnError },
+          "[ViewBlazersTVCommand] Gracenote fetch failed, continuing with NBA schedule source",
+        );
       }
 
-      // Filter for Blazers games
-      const blazersGames = allListings.filter((listing) => {
+      // 2. Fetch NBA Schedule API
+      let nbaGames = [];
+      try {
+        const currentYear = now.getFullYear();
+        const seasonYear =
+          now.getMonth() >= 9
+            ? `${currentYear}-${(currentYear + 1).toString().slice(2)}`
+            : `${currentYear - 1}-${currentYear.toString().slice(2)}`;
+        const nbaRes = await fetch(
+          `https://stats.nba.com/stats/scheduleLeagueV2?LeagueID=00&Season=${seasonYear}`,
+          {
+            headers: {
+              "user-agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              referer: "https://www.nba.com/schedule/blazers",
+            },
+          },
+        );
+
+        if (nbaRes.ok) {
+          const json = await nbaRes.json();
+          const gameDates = json.leagueSchedule?.gameDates || [];
+          for (const gd of gameDates) {
+            for (const game of gd.games || []) {
+              if (
+                game.homeTeam?.teamId === 1610612757 ||
+                game.awayTeam?.teamId === 1610612757 ||
+                game.homeTeam?.teamName
+                  ?.toLowerCase()
+                  .includes("trail blazers") ||
+                game.homeTeam?.teamName?.toLowerCase().includes("blazers") ||
+                game.awayTeam?.teamName
+                  ?.toLowerCase()
+                  .includes("trail blazers") ||
+                game.awayTeam?.teamName?.toLowerCase().includes("blazers")
+              ) {
+                nbaGames.push(game);
+              }
+            }
+          }
+        }
+      } catch (nbaError) {
+        logger.warn(
+          { err: nbaError },
+          "[ViewBlazersTVCommand] NBA schedule fetch failed, continuing with Gracenote source",
+        );
+      }
+
+      if (gnGames.length === 0 && nbaGames.length === 0) {
+        return interaction.editReply({
+          content:
+            "🏀 No upcoming Portland Trail Blazers games found on the TV schedule.",
+        });
+      }
+
+      // 3. Normalize and Merge/Deduplicate
+      const unifiedMap = new Map();
+
+      function getOpponent(homeTeam, awayTeam) {
+        const isHome =
+          homeTeam?.teamId === 1610612757 ||
+          homeTeam?.teamName?.toLowerCase().includes("blazers");
+        const opp = isHome ? awayTeam : homeTeam;
+        const name =
+          `${opp?.teamCity || ""} ${opp?.teamName || ""}`.trim() ||
+          opp?.teamName ||
+          "Unknown Opponent";
+        return { opponent: name, location: isHome ? "Home" : "Away" };
+      }
+
+      // Process NBA Games
+      for (const game of nbaGames) {
+        const dateStr = (
+          game.gameDateTimeUTC ||
+          game.gameTimeUTC ||
+          game.gameDate ||
+          ""
+        ).split("T")[0];
+        if (!dateStr) continue;
+        const startTime = Math.floor(
+          new Date(
+            game.gameDateTimeUTC || game.gameTimeUTC || game.gameDate,
+          ).getTime() / 1000,
+        );
+        const { opponent, location } = getOpponent(
+          game.homeTeam,
+          game.awayTeam,
+        );
+
+        const tvSet = new Set();
+        const broadcasters = game.broadcasters || {};
+        const broadcasterKeys = [
+          "nationalBroadcasters",
+          "homeTvBroadcasters",
+          "awayTvBroadcasters",
+          "homeOttBroadcasters",
+          "awayOttBroadcasters",
+        ];
+        broadcasterKeys.forEach((key) => {
+          if (Array.isArray(broadcasters[key])) {
+            broadcasters[key].forEach((b) => {
+              if (b.broadcasterDisplay) tvSet.add(b.broadcasterDisplay);
+            });
+          }
+        });
+
+        const key = `${dateStr}_${opponent.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+        unifiedMap.set(key, {
+          startTime,
+          date: dateStr,
+          opponent,
+          location,
+          tvNetworks: tvSet,
+          source: "NBA.com",
+        });
+      }
+
+      // Process Gracenote Games
+      for (const listing of gnGames) {
+        const dateStr = listing.progDate;
+        const startTime = listing.startTime;
         const program = listing.program || {};
         const title = program.title || "";
         const episodeTitle = program.episodeTitle || "";
-        const description = program.shortDesc || "";
+        const desc = program.shortDesc || "";
+        const fullText = `${title} ${episodeTitle} ${desc}`.toLowerCase();
 
-        // Check if it's an NBA Basketball game featuring Portland Trail Blazers
-        const isNBAGame =
-          title.toLowerCase().includes("nba basketball") ||
-          episodeTitle.toLowerCase().includes("nba basketball") ||
-          title.toLowerCase().includes("nba:");
+        let matchedKey = null;
+        for (const [k, entry] of unifiedMap.entries()) {
+          if (entry.date === dateStr) {
+            const oppWords = entry.opponent.toLowerCase().split(/\s+/);
+            if (oppWords.some((w) => w.length > 3 && fullText.includes(w))) {
+              matchedKey = k;
+              break;
+            }
+          }
+        }
 
-        const hasBlazers =
-          title.toLowerCase().includes("portland trail blazers") ||
-          title.toLowerCase().includes("trail blazers") ||
-          episodeTitle.toLowerCase().includes("portland trail blazers") ||
-          episodeTitle.toLowerCase().includes("trail blazers") ||
-          description.toLowerCase().includes("portland trail blazers") ||
-          description.toLowerCase().includes("trail blazers");
-
-        return isNBAGame && hasBlazers;
-      });
-
-      if (blazersGames.length === 0) {
-        return interaction.editReply({
-          content:
-            "🏀 No upcoming Portland Trail Blazers games found on the TV schedule in the next 14 days.",
-        });
+        if (matchedKey) {
+          const entry = unifiedMap.get(matchedKey);
+          entry.tvNetworks.add("KATU ABC 2/KUNP");
+        } else {
+          const key = `${dateStr}_gracenote_${startTime}`;
+          unifiedMap.set(key, {
+            startTime,
+            date: dateStr,
+            opponent: episodeTitle || title || "Portland Trail Blazers Game",
+            location: "",
+            tvNetworks: new Set(["KATU ABC 2/KUNP"]),
+            source: "Gracenote",
+          });
+        }
       }
 
-      // Sort by start time
-      const sortedGames = blazersGames.sort(
+      const allGames = Array.from(unifiedMap.values()).sort(
         (a, b) => a.startTime - b.startTime,
       );
 
-      // Group games by date
-      const gamesByDate = {};
-      sortedGames.forEach((game) => {
-        const date = game.progDate; // e.g., "2026-03-15"
-        if (!gamesByDate[date]) {
-          gamesByDate[date] = [];
-        }
-        gamesByDate[date].push(game);
-      });
+      // Filter games matching the allowlist
+      const filteredGames = allGames
+        .filter((g) => {
+          const networks = Array.from(g.tvNetworks);
+          return networks.some((net) => {
+            const lower = net.toLowerCase();
+            return ALLOWLIST.some((allowed) => lower.includes(allowed));
+          });
+        })
+        .filter((g) => g.startTime * 1000 > Date.now())
+        .slice(0, 10);
 
-      // Get the first 10 unique dates (each date may have multiple showings)
-      const uniqueDates = Object.keys(gamesByDate).sort().slice(0, 10);
-
-      if (uniqueDates.length === 0) {
+      if (filteredGames.length === 0) {
         return interaction.editReply({
           content:
-            "🏀 No upcoming Portland Trail Blazers games found on the TV schedule in the next 14 days.",
+            "🏀 No upcoming Portland Trail Blazers games found on your allowed TV networks/services (KATU ABC 2/KUNP, KUNP, NBC, Peacock, Prime Video).",
         });
       }
 
-      // Build embed
+      // 4. Build Discord Embed
       const embed = new EmbedBuilder()
-        .setTitle("🏀 Upcoming Portland Trail Blazers Games")
-        .setURL("https://tvlistings.gracenote.com/ss-list-affiliates.html?aid=katu")
+        .setTitle("🏀 Upcoming Portland Trail Blazers Games (Filtered)")
+        .setDescription("Showing games available on your allowlist: `KATU ABC 2/KUNP, KUNP, NBC, Peacock, Prime Video`")
+        .setURL("https://www.nba.com/schedule/blazers")
         .setColor("#E03A3E") // Blazers red
-        .setFooter({ text: "Schedule via Gracenote" });
+        .setFooter({ text: "Schedule via NBA.com & Gracenote" });
 
-      // Add each date as a field with all showtimes
-      uniqueDates.forEach((date, index) => {
-        const gamesOnDate = gamesByDate[date];
-        const firstGame = gamesOnDate[0];
-        const program = firstGame.program || {};
-        const episodeTitle = program.episodeTitle || "";
-        const title = program.title || "NBA Game";
-
-        // Extract matchup from episodeTitle or title
-        let matchup = episodeTitle || title;
-
-        // If the title is "NBA Basketball" and episodeTitle has the matchup, use that
-        if (title.toLowerCase().includes("nba basketball") && episodeTitle) {
-          matchup = episodeTitle;
-        }
-
-        // Clean up any quotes
-        const quoteMatch = matchup.match(/["']([^"']+)["']/);
-        if (quoteMatch) {
-          matchup = quoteMatch[1];
-        }
-
-        // Format the date
-        const firstStartTime = new Date(firstGame.startTime * 1000);
-        const dateStr = firstStartTime.toLocaleDateString("en-US", {
+      filteredGames.forEach((game, index) => {
+        const startTime = new Date(game.startTime * 1000);
+        const dateStr = startTime.toLocaleDateString("en-US", {
           weekday: "short",
           month: "short",
           day: "numeric",
+          timeZone: "America/Los_Angeles",
+        });
+        const timeStr = startTime.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "America/Los_Angeles",
         });
 
-        // Collect all showtimes for this date
-        const showtimes = gamesOnDate
-          .map((game) => {
-            const startTime = new Date(game.startTime * 1000);
-            return startTime.toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true,
-            });
-          })
-          .join(", ");
+        const locationStr = game.location ? ` (${game.location})` : "";
+        
+        // Filter TV networks to only show those matching the allowlist
+        const allowedNets = Array.from(game.tvNetworks).filter((net) => {
+          const lower = net.toLowerCase();
+          return ALLOWLIST.some((allowed) => lower.includes(allowed));
+        });
+        const tvList = allowedNets.join(", ") || "Available on allowlist";
 
         embed.addFields({
-          name: `Game ${index + 1}: ${matchup}`,
-          value: `📅  ${dateStr}  🕐  ${showtimes}`,
+          name: `Game ${index + 1}: vs ${game.opponent}${locationStr}`,
+          value: `📅  ${dateStr} at ${timeStr}\n📺  ${tvList}`,
           inline: false,
         });
       });
@@ -231,9 +356,7 @@ export class ViewBlazersTVCommand extends Command {
         "[ViewBlazersTVCommand] Error fetching TV schedule",
       );
 
-      const errorMessage = error?.message?.includes("API returned")
-        ? `Failed to fetch TV schedule: ${error.message}`
-        : `An error occurred while fetching the TV schedule: ${error?.message || "Unknown error"}`;
+      const errorMessage = `An error occurred while fetching the TV schedule: ${error?.message || "Unknown error"}`;
 
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
