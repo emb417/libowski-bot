@@ -10,7 +10,7 @@ export class ViewBlazersTVCommand extends Command {
     super(context, {
       ...options,
       name: "view-blazers-tv",
-      description: "View upcoming Portland Trail Blazers games on TV (filtered by your services).",
+      description: "View upcoming Portland Trail Blazers games on TV with replay times (filtered by your services).",
     });
   }
 
@@ -31,12 +31,12 @@ export class ViewBlazersTVCommand extends Command {
       });
 
       logger.info(
-        `[/view-blazers-tv] User ${interaction.user.username} requested filtered Blazers TV schedule.`,
+        `[/view-blazers-tv] User ${interaction.user.username} requested filtered Blazers TV schedule with replay times.`,
       );
 
       const now = new Date();
 
-      // 1. Fetch Gracenote TV listings
+      // 1. Fetch Gracenote TV listings (KUNP / KATU with replay times)
       let gnGames = [];
       try {
         const ptFormatter = new Intl.DateTimeFormat("en-US", {
@@ -186,7 +186,7 @@ export class ViewBlazersTVCommand extends Command {
         });
       }
 
-      // 3. Normalize and Merge/Deduplicate
+      // 3. Normalize and Merge/Deduplicate (preserving ordered showtimes for initial vs replay)
       const unifiedMap = new Map();
 
       function getOpponent(homeTeam, awayTeam) {
@@ -244,14 +244,22 @@ export class ViewBlazersTVCommand extends Command {
           opponent,
           location,
           tvNetworks: tvSet,
+          listings: [], // stores { startTime, timeStr }
           source: "NBA.com",
         });
       }
 
-      // Process Gracenote Games
+      // Process Gracenote Games (collecting all airings chronologically)
       for (const listing of gnGames) {
         const dateStr = listing.progDate;
         const startTime = listing.startTime;
+        const timeStr = new Date(startTime * 1000).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "America/Los_Angeles",
+        });
+
         const program = listing.program || {};
         const title = program.title || "";
         const episodeTitle = program.episodeTitle || "";
@@ -272,6 +280,7 @@ export class ViewBlazersTVCommand extends Command {
         if (matchedKey) {
           const entry = unifiedMap.get(matchedKey);
           entry.tvNetworks.add("KATU ABC 2/KUNP");
+          entry.listings.push({ startTime, timeStr });
         } else {
           const key = `${dateStr}_gracenote_${startTime}`;
           unifiedMap.set(key, {
@@ -280,6 +289,7 @@ export class ViewBlazersTVCommand extends Command {
             opponent: episodeTitle || title || "Portland Trail Blazers Game",
             location: "",
             tvNetworks: new Set(["KATU ABC 2/KUNP"]),
+            listings: [{ startTime, timeStr }],
             source: "Gracenote",
           });
         }
@@ -324,12 +334,22 @@ export class ViewBlazersTVCommand extends Command {
           day: "numeric",
           timeZone: "America/Los_Angeles",
         });
-        const timeStr = startTime.toLocaleTimeString("en-US", {
+        
+        let primaryTimeStr = startTime.toLocaleTimeString("en-US", {
           hour: "numeric",
           minute: "2-digit",
           hour12: true,
           timeZone: "America/Los_Angeles",
         });
+
+        // Sort listings chronologically if from Gracenote
+        let replays = [];
+        if (game.listings && game.listings.length > 0) {
+          game.listings.sort((a, b) => a.startTime - b.startTime);
+          // If the first listing is earlier or matches, use it as primary time
+          primaryTimeStr = game.listings[0].timeStr;
+          replays = game.listings.slice(1).map((l) => l.timeStr);
+        }
 
         const locationStr = game.location ? ` (${game.location})` : "";
         
@@ -340,9 +360,14 @@ export class ViewBlazersTVCommand extends Command {
         });
         const tvList = allowedNets.join(", ") || "Available on allowlist";
 
+        let valueStr = `📅  ${dateStr} at ${primaryTimeStr}\n📺  ${tvList}`;
+        if (replays.length > 0) {
+          valueStr += `\n🔁  Replay(s): ${replays.join(", ")}`;
+        }
+
         embed.addFields({
           name: `Game ${index + 1}: vs ${game.opponent}${locationStr}`,
-          value: `📅  ${dateStr} at ${timeStr}\n📺  ${tvList}`,
+          value: valueStr,
           inline: false,
         });
       });
