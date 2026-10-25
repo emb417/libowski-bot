@@ -10,7 +10,8 @@ export class ViewBlazersTVCommand extends Command {
     super(context, {
       ...options,
       name: "view-blazers-tv",
-      description: "View upcoming Portland Trail Blazers games on TV with replay times (filtered by your services).",
+      description:
+        "View upcoming Portland Trail Blazers games on TV with replay times (filtered by your services).",
     });
   }
 
@@ -36,7 +37,7 @@ export class ViewBlazersTVCommand extends Command {
 
       const now = new Date();
 
-      // 1. Fetch Gracenote TV listings (KUNP / KATU with replay times)
+      // 1. Fetch Gracenote TV listings (KUNP with replay times)
       let gnGames = [];
       try {
         const ptFormatter = new Intl.DateTimeFormat("en-US", {
@@ -80,7 +81,8 @@ export class ViewBlazersTVCommand extends Command {
               "accept-language":
                 "en-US,en;q=0.9,es;q=0.8,pt;q=0.7,pt-BR;q=0.6,pt-PT;q=0.5",
               "cache-control": "no-cache",
-              "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+              "content-type":
+                "application/x-www-form-urlencoded; charset=UTF-8",
               pragma: "no-cache",
               "x-requested-with": "XMLHttpRequest",
               referer:
@@ -232,7 +234,17 @@ export class ViewBlazersTVCommand extends Command {
         broadcasterKeys.forEach((key) => {
           if (Array.isArray(broadcasters[key])) {
             broadcasters[key].forEach((b) => {
-              if (b.broadcasterDisplay) tvSet.add(b.broadcasterDisplay);
+              if (b.broadcasterDisplay) {
+                // Map KATU ABC 2/KUNP to KUNP if present
+                let disp = b.broadcasterDisplay;
+                if (
+                  disp.toLowerCase().includes("katu") &&
+                  disp.toLowerCase().includes("kunp")
+                ) {
+                  disp = "KUNP";
+                }
+                tvSet.add(disp);
+              }
             });
           }
         });
@@ -244,12 +256,12 @@ export class ViewBlazersTVCommand extends Command {
           opponent,
           location,
           tvNetworks: tvSet,
-          listings: [], // stores { startTime, timeStr }
+          listings: [],
           source: "NBA.com",
         });
       }
 
-      // Process Gracenote Games (collecting all airings chronologically)
+      // Process Gracenote Games (collecting all airings chronologically and mapping to KUNP)
       for (const listing of gnGames) {
         const dateStr = listing.progDate;
         const startTime = listing.startTime;
@@ -279,7 +291,7 @@ export class ViewBlazersTVCommand extends Command {
 
         if (matchedKey) {
           const entry = unifiedMap.get(matchedKey);
-          entry.tvNetworks.add("KATU ABC 2/KUNP");
+          entry.tvNetworks.add("KUNP");
           entry.listings.push({ startTime, timeStr });
         } else {
           const key = `${dateStr}_gracenote_${startTime}`;
@@ -288,7 +300,7 @@ export class ViewBlazersTVCommand extends Command {
             date: dateStr,
             opponent: episodeTitle || title || "Portland Trail Blazers Game",
             location: "",
-            tvNetworks: new Set(["KATU ABC 2/KUNP"]),
+            tvNetworks: new Set(["KUNP"]),
             listings: [{ startTime, timeStr }],
             source: "Gracenote",
           });
@@ -314,14 +326,16 @@ export class ViewBlazersTVCommand extends Command {
       if (filteredGames.length === 0) {
         return interaction.editReply({
           content:
-            "🏀 No upcoming Portland Trail Blazers games found on your allowed TV networks/services (KATU ABC 2/KUNP, KUNP, NBC, Peacock, Prime Video).",
+            "🏀 No upcoming Portland Trail Blazers games found on your allowed TV networks/services (KUNP, NBC, Peacock, Prime Video).",
         });
       }
 
       // 4. Build Discord Embed
       const embed = new EmbedBuilder()
         .setTitle("🏀 Upcoming Portland Trail Blazers Games (Filtered)")
-        .setDescription("Showing games available on your allowlist: `KATU ABC 2/KUNP, KUNP, NBC, Peacock, Prime Video`")
+        .setDescription(
+          "Showing games available on: `KUNP, NBC, Peacock, Prime Video`",
+        )
         .setURL("https://www.nba.com/schedule/blazers")
         .setColor("#E03A3E") // Blazers red
         .setFooter({ text: "Schedule via NBA.com & Gracenote" });
@@ -334,7 +348,7 @@ export class ViewBlazersTVCommand extends Command {
           day: "numeric",
           timeZone: "America/Los_Angeles",
         });
-        
+
         let primaryTimeStr = startTime.toLocaleTimeString("en-US", {
           hour: "numeric",
           minute: "2-digit",
@@ -346,15 +360,23 @@ export class ViewBlazersTVCommand extends Command {
         let replays = [];
         if (game.listings && game.listings.length > 0) {
           game.listings.sort((a, b) => a.startTime - b.startTime);
-          // If the first listing is earlier or matches, use it as primary time
           primaryTimeStr = game.listings[0].timeStr;
           replays = game.listings.slice(1).map((l) => l.timeStr);
         }
 
         const locationStr = game.location ? ` (${game.location})` : "";
-        
-        // Filter TV networks to only show those matching the allowlist
-        const allowedNets = Array.from(game.tvNetworks).filter((net) => {
+
+        // Filter TV networks to only show those matching the allowlist and deduplicate
+        const allowedNets = Array.from(
+          new Set(
+            Array.from(game.tvNetworks).map((net) => {
+              let lower = net.toLowerCase();
+              if (lower.includes("katu") && lower.includes("kunp"))
+                return "KUNP";
+              return net;
+            }),
+          ),
+        ).filter((net) => {
           const lower = net.toLowerCase();
           return ALLOWLIST.some((allowed) => lower.includes(allowed));
         });
