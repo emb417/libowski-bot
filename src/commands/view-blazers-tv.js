@@ -191,6 +191,15 @@ export class ViewBlazersTVCommand extends Command {
       // 3. Normalize and Merge/Deduplicate by Date (at most 1 game per day)
       const unifiedMap = new Map();
 
+      const getPacificDateStr = (timestampSec) => {
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(timestampSec * 1000));
+      };
+
       function getOpponent(homeTeam, awayTeam) {
         const isHome =
           homeTeam?.teamId === 1610612757 ||
@@ -205,18 +214,16 @@ export class ViewBlazersTVCommand extends Command {
 
       // Process NBA Games
       for (const game of nbaGames) {
-        const dateStr = (
+        const rawDate =
           game.gameDateTimeUTC ||
           game.gameTimeUTC ||
           game.gameDate ||
-          ""
-        ).split("T")[0];
-        if (!dateStr) continue;
-        const startTime = Math.floor(
-          new Date(
-            game.gameDateTimeUTC || game.gameTimeUTC || game.gameDate,
-          ).getTime() / 1000,
-        );
+          "";
+        if (!rawDate) continue;
+        const startTime = Math.floor(new Date(rawDate).getTime() / 1000);
+        if (isNaN(startTime)) continue;
+        const dateStr = getPacificDateStr(startTime);
+
         const { opponent, location } = getOpponent(
           game.homeTeam,
           game.awayTeam,
@@ -262,9 +269,9 @@ export class ViewBlazersTVCommand extends Command {
 
       // Process Gracenote Games (collecting all airings and mapping to KUNP for that date)
       for (const listing of gnGames) {
-        const dateStr = listing.progDate;
-        if (!dateStr) continue;
         const startTime = listing.startTime;
+        if (!startTime) continue;
+        const dateStr = getPacificDateStr(startTime);
         const timeStr = new Date(startTime * 1000).toLocaleTimeString("en-US", {
           hour: "numeric",
           minute: "2-digit",
