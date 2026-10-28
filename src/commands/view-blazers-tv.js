@@ -310,7 +310,12 @@ export class ViewBlazersTVCommand extends Command {
           const networks = Array.from(g.tvNetworks);
           return networks.some((net) => {
             const lower = net.toLowerCase();
-            return ALLOWLIST.some((allowed) => lower.includes(allowed));
+            return ALLOWLIST.some((allowed) => {
+              if (allowed === "nbc") {
+                return lower === "nbc" || lower === "nbc sports" || (lower.includes("nbc") && !lower.startsWith("nbcs"));
+              }
+              return lower.includes(allowed);
+            });
           });
         })
         .filter((g) => g.startTime * 1000 > Date.now())
@@ -371,7 +376,12 @@ export class ViewBlazersTVCommand extends Command {
           ),
         ).filter((net) => {
           const lower = net.toLowerCase();
-          return ALLOWLIST.some((allowed) => lower.includes(allowed));
+          return ALLOWLIST.some((allowed) => {
+            if (allowed === "nbc") {
+              return lower === "nbc" || lower === "nbc sports" || (lower.includes("nbc") && !lower.startsWith("nbcs"));
+            }
+            return lower.includes(allowed);
+          });
         });
         const tvList = allowedNets.join(", ") || "Available on allowlist";
 
