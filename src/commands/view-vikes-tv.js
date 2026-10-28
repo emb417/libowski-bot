@@ -156,10 +156,14 @@ export class ViewVikesTVCommand extends Command {
         const awayTeam = game.awayTeam?.name || "Unknown";
         const opponent = homeTeam === "Minnesota Vikings" ? awayTeam : homeTeam;
         const location = homeTeam === "Minnesota Vikings" ? "Home" : "Away";
+        const opponentWithLocation = `${opponent} (${location})`;
+
+        const nameStr = `📅  ${dateStr} vs ${opponentWithLocation}`;
+        const valueStr = `📺  ${game.tv} at ${timeStr}`;
 
         embed.addFields({
-          name: `${opponent} (${location})`,
-          value: `📅 ${dateStr} at ${timeStr}\n📺 ${game.tv}`,
+          name: nameStr,
+          value: valueStr,
           inline: false,
         });
       });

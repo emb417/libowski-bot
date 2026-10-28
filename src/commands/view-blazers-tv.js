@@ -382,13 +382,15 @@ export class ViewBlazersTVCommand extends Command {
         });
         const tvList = allowedNets.join(", ") || "Available on allowlist";
 
-        let valueStr = `📅  ${dateStr} at ${primaryTimeStr}\n📺  ${tvList}`;
+        const opponentWithLocation = `${game.opponent}${game.location ? ` (${game.location})` : ""}`;
+        const nameStr = `📅  ${dateStr} vs ${opponentWithLocation}`;
+        let valueStr = `📺  ${tvList} at ${primaryTimeStr}`;
         if (replays.length > 0) {
-          valueStr += `\n🔁  Replay(s): ${replays.join(", ")}`;
+          valueStr += `\n🔁  ${replays.join(", ")}`;
         }
 
         embed.addFields({
-          name: `Game ${index + 1}: vs ${game.opponent}${locationStr}`,
+          name: nameStr,
           value: valueStr,
           inline: false,
         });
