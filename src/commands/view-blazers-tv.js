@@ -188,7 +188,7 @@ export class ViewBlazersTVCommand extends Command {
         });
       }
 
-      // 3. Normalize and Merge/Deduplicate (preserving ordered showtimes for initial vs replay)
+      // 3. Normalize and Merge/Deduplicate by Date (at most 1 game per day)
       const unifiedMap = new Map();
 
       function getOpponent(homeTeam, awayTeam) {
@@ -249,8 +249,7 @@ export class ViewBlazersTVCommand extends Command {
           }
         });
 
-        const key = `${dateStr}_${opponent.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
-        unifiedMap.set(key, {
+        unifiedMap.set(dateStr, {
           startTime,
           date: dateStr,
           opponent,
@@ -261,9 +260,10 @@ export class ViewBlazersTVCommand extends Command {
         });
       }
 
-      // Process Gracenote Games (collecting all airings chronologically and mapping to KUNP)
+      // Process Gracenote Games (collecting all airings and mapping to KUNP for that date)
       for (const listing of gnGames) {
         const dateStr = listing.progDate;
+        if (!dateStr) continue;
         const startTime = listing.startTime;
         const timeStr = new Date(startTime * 1000).toLocaleTimeString("en-US", {
           hour: "numeric",
@@ -275,27 +275,13 @@ export class ViewBlazersTVCommand extends Command {
         const program = listing.program || {};
         const title = program.title || "";
         const episodeTitle = program.episodeTitle || "";
-        const desc = program.shortDesc || "";
-        const fullText = `${title} ${episodeTitle} ${desc}`.toLowerCase();
 
-        let matchedKey = null;
-        for (const [k, entry] of unifiedMap.entries()) {
-          if (entry.date === dateStr) {
-            const oppWords = entry.opponent.toLowerCase().split(/\s+/);
-            if (oppWords.some((w) => w.length > 3 && fullText.includes(w))) {
-              matchedKey = k;
-              break;
-            }
-          }
-        }
-
-        if (matchedKey) {
-          const entry = unifiedMap.get(matchedKey);
+        if (unifiedMap.has(dateStr)) {
+          const entry = unifiedMap.get(dateStr);
           entry.tvNetworks.add("KUNP");
           entry.listings.push({ startTime, timeStr });
         } else {
-          const key = `${dateStr}_gracenote_${startTime}`;
-          unifiedMap.set(key, {
+          unifiedMap.set(dateStr, {
             startTime,
             date: dateStr,
             opponent: episodeTitle || title || "Portland Trail Blazers Game",
